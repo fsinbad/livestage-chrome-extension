@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>TikTok Live Automation Config</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 28px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f6f7f9;
+        color: #161823;
+      }
+      .page {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e8e8ed;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+      }
+      header {
+        padding: 22px 24px;
+        border-bottom: 1px solid #f0f0f2;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      header img {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0;
+      }
+      .subtitle {
+        margin-top: 4px;
+        color: #6b7280;
+        font-size: 13px;
+      }
+      form {
+        padding: 24px;
+      }
+      label {
+        display: block;
+        font-weight: 700;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      .field {
+        margin-bottom: 22px;
+      }
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid #d9dce3;
+        border-radius: 10px;
+        padding: 11px 12px;
+        font: inherit;
+        background: #fff;
+        outline: none;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        margin: 0;
+        accent-color: #1677ff;
+      }
+      .switch-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid #e8e8ed;
+        border-radius: 12px;
+        background: #fbfcff;
+      }
+      .switch-row label {
+        margin: 0;
+      }
+      input:focus,
+      textarea:focus {
+        border-color: #1677ff;
+        box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
+      }
+      textarea {
+        min-height: 180px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+      #sent {
+        min-height: 140px;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 12px;
+      }
+      .help {
+        color: #8a8f99;
+        font-size: 12px;
+        margin-top: 6px;
+        line-height: 1.45;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        border-top: 1px solid #f0f0f2;
+        padding-top: 18px;
+      }
+      button {
+        border: none;
+        border-radius: 10px;
+        padding: 11px 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .primary {
+        background: #1677ff;
+        color: #fff;
+      }
+      .secondary {
+        background: #eef1f5;
+        color: #161823;
+      }
+      .status {
+        margin-left: auto;
+        color: #0f9f6e;
+        font-size: 13px;
+        min-height: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <header>
+          <img src="icons/icon48.png" alt="LIVE Backstage" />
+          <div>
+            <h1>TikTok Live Automation Config</h1>
+          </div>
+        </header>
+
+        <form id="configForm">
+          <div class="field">
+            <label for="loopSize">loopSize / 送信先人数</label>
+            <input
+              id="loopSize"
+              name="loopSize"
+              type="number"
+              min="1"
+              step="1"
+            />
+            <div class="help">
+              Get Creators will collect this many TikTok usernames.
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="msg">msg / 送信内容</label>
+            <textarea
+              id="msg"
+              name="msg"
+              placeholder="Message to send..."
+            ></textarea>
+            <div class="help">Send Message uses this exact text.</div>
+          </div>
+
+          <div class="field">
+            <label for="sent">sent / 送信済</label>
+            <textarea
+              id="sent"
+              name="sent"
+              placeholder="user1,user2,user3"
+            ></textarea>
+            <div class="help">
+              Comma-separated sent usernames. Send Message skips these users and
+              appends new sent users here.
+            </div>
+          </div>
+
+          <div class="field switch-row">
+            <input id="testMode" name="testMode" type="checkbox" />
+            <div>
+              <label for="testMode">Test mode / テスト送信</label>
+              <div class="help">
+                When enabled, Send Message searches users and fills the message,
+                but does not press Enter or update sent.
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="primary" type="submit">Save Config</button>
+            <button class="secondary" type="button" id="reloadBtn">
+              Reload
+            </button>
+            <span class="status" id="status"></span>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

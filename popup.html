@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        width: 280px;
+        margin: 0;
+        padding: 16px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #fff;
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0 0 14px;
+        color: #161823;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        object-fit: cover;
+      }
+      button {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 8px;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          opacity 0.15s,
+          transform 0.15s,
+          background 0.15s;
+      }
+      button:hover:not(:disabled) {
+        opacity: 0.92;
+        transform: translateY(-1px);
+      }
+      button:active:not(:disabled) {
+        opacity: 0.82;
+        transform: translateY(0);
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+        transform: none;
+      }
+      .task-button {
+        background: #1677ff;
+      }
+      .task-button.running {
+        position: relative;
+        overflow: hidden;
+        opacity: 1;
+        background: linear-gradient(90deg, #1677ff, #4096ff, #1677ff);
+        background-size: 200% 100%;
+        animation: runningPulse 1.1s linear infinite;
+      }
+      .task-button.running::before {
+        content: "";
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 7px;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #fff;
+        border-radius: 50%;
+        vertical-align: -1px;
+        animation: spin 0.7s linear infinite;
+      }
+      .stop-button {
+        background: #ff3b30;
+      }
+      .config-button {
+        background: #eef1f5;
+        color: #161823;
+      }
+      .stop-button:disabled {
+        background: #d9d9d9;
+        color: #8c8c8c;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes runningPulse {
+        0% {
+          background-position: 0% 50%;
+        }
+        100% {
+          background-position: 200% 50%;
+        }
+      }
+      .status {
+        font-size: 11px;
+        color: #888;
+        margin-top: 6px;
+        padding: 6px 8px;
+        background: #f8f8f8;
+        border-radius: 4px;
+        word-break: break-word;
+      }
+      .hint {
+        font-size: 10px;
+        color: #aaa;
+        margin-top: 10px;
+        line-height: 1.4;
+      }
+      .divider {
+        height: 1px;
+        background: #f1f1f2;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <img class="logo" src="icons/icon32.png" alt="LIVE Backstage" />
+      TikTok Live Automation
+    </h1>
+
+    <button id="btnGetCreator" class="task-button" data-task="getCreator">
+      1. Get Creators
+    </button>
+    <button id="btnInvite" class="task-button" data-task="invite">
+      2. Invite
+    </button>
+    <button id="btnSend" class="task-button" data-task="sendMessage">
+      3. Send Message
+    </button>
+
+    <div class="divider"></div>
+    <button id="btnConfig" class="config-button">Config</button>
+    <button id="btnStop" class="stop-button" disabled>STOP</button>
+
+    <div class="status" id="status">Ready — click a task to start</div>
+    <div class="hint">
+      Make sure you're logged into TikTok backstage.<br />
+      loopSize / msg / sent are stored in local extension config.
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
