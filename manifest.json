@@ -27,7 +27,7 @@
         "https://live-backstage.tiktok.com/*",
         "https://www.tiktok.com/*"
       ],
-      "js": ["config.js", "content.js"],
+      "js": ["config.js", "page-agent.iife.js", "content.js"],
       "run_at": "document_idle"
     }
   ],

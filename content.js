@@ -943,9 +943,6 @@ function notify(text, _duration = 5000, kind = "info") {
 // PageAgent Integration — Agent Engine
 // =================================================================================
 
-const PAGE_AGENT_CDN =
-	"https://cdn.jsdelivr.net/npm/page-agent@1.8.2/dist/iife/page-agent.js";
-
 const PROVIDER_DEFAULTS = {
 	tongyi: {
 		model: "qwen3.5-plus",
@@ -961,17 +958,12 @@ const PROVIDER_DEFAULTS = {
 	},
 };
 
-async function loadPageAgentScript() {
-	if (globalThis.PageAgent) return;
-	return new Promise((resolve, reject) => {
-		const script = document.createElement("script");
-		script.src = PAGE_AGENT_CDN;
-		script.crossOrigin = "anonymous";
-		script.onload = () => resolve();
-		script.onerror = () =>
-			reject(new Error("Failed to load PageAgent from CDN"));
-		document.head.appendChild(script);
-	});
+function ensurePageAgentLoaded() {
+	if (!globalThis.PageAgent) {
+		throw new Error(
+			"PageAgent is not loaded. Make sure page-agent.iife.js is listed before content.js in manifest.",
+		);
+	}
 }
 
 async function createPageAgentInstance() {
@@ -1018,10 +1010,7 @@ async function executeAgentStep(agent, instruction, timeout = 60000) {
 				),
 			),
 		]);
-		appendFloatingLog(
-			`[Agent] ✓ Done (${Date.now() - start}ms)`,
-			"success",
-		);
+		appendFloatingLog(`[Agent] ✓ Done (${Date.now() - start}ms)`, "success");
 		return result;
 	} catch (err) {
 		appendFloatingLog(
@@ -1069,7 +1058,7 @@ async function runAgentGetCreator(step, data) {
 		users = users ? [...users] : [];
 		const seenUsers = new Set(users);
 
-		await loadPageAgentScript();
+		ensurePageAgentLoaded();
 		const agent = await createPageAgentInstance();
 
 		// Initial creator
@@ -1204,7 +1193,7 @@ async function runAgentInvite(step, data) {
 			if (!ready) return;
 		}
 
-		await loadPageAgentScript();
+		ensurePageAgentLoaded();
 		const agent = await createPageAgentInstance();
 
 		await ensureInviteSideSheetOpen();
@@ -1356,7 +1345,7 @@ async function runAgentSendMessage(step, data) {
 		const sentThisRun = new Set(newsent);
 		const testedThisRun = new Set(tested);
 
-		await loadPageAgentScript();
+		ensurePageAgentLoaded();
 		const agent = await createPageAgentInstance();
 
 		await openInstantMessagesPage();
