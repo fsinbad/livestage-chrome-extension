@@ -118,7 +118,9 @@ stopButton.addEventListener("click", async () => {
 	if (stopButton.disabled) return;
 	await chrome.storage.local.remove(["tkTask", "tkStep", "tkData"]);
 	setUiState();
-	setStatus("停止しました。ページを更新すると実行中の操作がキャンセルされます。");
+	setStatus(
+		"停止しました。ページを更新すると実行中の操作がキャンセルされます。",
+	);
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

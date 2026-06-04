@@ -339,7 +339,9 @@ async function openInstantMessagesPage() {
 	).catch(() => null);
 
 	if (!instantMenu) {
-		appendFloatingLog("インスタントメニューが非表示です。アンカーメニューを開きます...");
+		appendFloatingLog(
+			"インスタントメニューが非表示です。アンカーメニューを開きます...",
+		);
 		const anchorMenu = await waitUntil(
 			() => {
 				const el = document.querySelector('[data-id="menu-anchor"]');
@@ -365,7 +367,8 @@ async function openInstantMessagesPage() {
 		}
 	}
 
-	if (!instantMenu) throw new Error("インスタントメッセージメニューが見つかりません");
+	if (!instantMenu)
+		throw new Error("インスタントメッセージメニューが見つかりません");
 
 	appendFloatingLog("インスタントメッセージメニューをクリック中...");
 	clickElementLikeUser(instantMenu);
@@ -1035,7 +1038,9 @@ async function runAgentGetCreator(step, data) {
 			"クリエイター取得 [Agent]",
 			`開始... 目標 ${loopSize} 人`,
 		);
-		appendFloatingLog(`[Agent] クリエイター取得を開始しました。目標=${loopSize}`);
+		appendFloatingLog(
+			`[Agent] クリエイター取得を開始しました。目標=${loopSize}`,
+		);
 		await setState("getCreator", 2, {
 			loopSize,
 			loopIndex: 0,
@@ -1118,9 +1123,7 @@ async function runAgentGetCreator(step, data) {
 			if (nextUser) {
 				users.push(nextUser);
 				seenUsers.add(nextUser);
-				appendFloatingLog(
-					`収集済み ${users.length}/${loopSize}: @${nextUser}`,
-				);
+				appendFloatingLog(`収集済み ${users.length}/${loopSize}: @${nextUser}`);
 				await setState("getCreator", 2, {
 					loopSize,
 					loopIndex: users.length,
@@ -1168,10 +1171,16 @@ async function runAgentInvite(step, data) {
 		const stored = await chrome.storage.local.get(["users"]);
 		const users = parseCsv(stored.users);
 		setFloatingStatus("招待チェック [Agent]", `開始... ${users.length} 人`);
-		appendFloatingLog(`[Agent] 招待チェックを開始しました。users=${users.length}`);
+		appendFloatingLog(
+			`[Agent] 招待チェックを開始しました。users=${users.length}`,
+		);
 		if (users.length === 0) {
 			await clearState();
-			notify("❌ ユーザーが見つかりません。先にクリエイター取得を実行してください。", 5000, "error");
+			notify(
+				"❌ ユーザーが見つかりません。先にクリエイター取得を実行してください。",
+				5000,
+				"error",
+			);
 			return;
 		}
 		const nextData = { users, chats: [], inviteIndex: 0 };
@@ -1244,7 +1253,10 @@ async function runAgentInvite(step, data) {
 			if ((await isInviteEligible(status, user)) && !seenChats.has(user)) {
 				chats.push(user);
 				seenChats.add(user);
-				appendFloatingLog(`対象を保存しました: @${user} (${status})`, "success");
+				appendFloatingLog(
+					`対象を保存しました: @${user} (${status})`,
+					"success",
+				);
 			} else {
 				appendFloatingLog(`スキップ: @${user} (${status})`);
 			}
@@ -1305,12 +1317,20 @@ async function runAgentSendMessage(step, data) {
 
 		if (!msg.trim()) {
 			await clearState();
-			notify("❌ メッセージが空です。先に設定でメッセージを入力してください。", 5000, "error");
+			notify(
+				"❌ メッセージが空です。先に設定でメッセージを入力してください。",
+				5000,
+				"error",
+			);
 			return;
 		}
 		if (chats.length === 0) {
 			await clearState();
-			notify("❌ 送信するチャットがありません。先に招待チェックを実行してください。", 5000, "error");
+			notify(
+				"❌ 送信するチャットがありません。先に招待チェックを実行してください。",
+				5000,
+				"error",
+			);
 			return;
 		}
 
@@ -1353,9 +1373,7 @@ async function runAgentSendMessage(step, data) {
 		for (let i = messageIndex; i < chats.length; i++) {
 			if (!(await isTaskActive("sendMessage"))) return;
 			const user = chats[i];
-			appendFloatingLog(
-				`[Agent] 処理中 ${i + 1}/${chats.length}: @${user}`,
-			);
+			appendFloatingLog(`[Agent] 処理中 ${i + 1}/${chats.length}: @${user}`);
 
 			// Search input via Agent + DOM fallback
 			const searchInput = await waitForInstantMessageSearchInput(15000);
@@ -1574,7 +1592,10 @@ async function runGetCreator(step, data) {
 	}
 
 	if (step === 2 && url.includes("tiktok.com/live")) {
-		setFloatingStatus("クリエイター取得", "Waiting for current LIVE creator...");
+		setFloatingStatus(
+			"クリエイター取得",
+			"Waiting for current LIVE creator...",
+		);
 		// Wait for the current TikTok creator data to load.
 		await waitForCreatorAnchor(30000);
 
@@ -1716,7 +1737,11 @@ async function runInvite(step, data) {
 
 		if (users.length === 0) {
 			await clearState();
-			notify("❌ ユーザーが見つかりません。先にクリエイター取得を実行してください。", 5000, "error");
+			notify(
+				"❌ ユーザーが見つかりません。先にクリエイター取得を実行してください。",
+				5000,
+				"error",
+			);
 			return;
 		}
 
