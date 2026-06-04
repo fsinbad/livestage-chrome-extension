@@ -694,6 +694,155 @@ function getVisibleXPathCount(xpath) {
 	return getXPathNodes(xpath).filter(isVisible).length;
 }
 
+function normalizeText(value) {
+	return String(value || "")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function getMessageProbeText(message) {
+	const lines = String(message || "")
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean);
+	return lines.find((line) => line.length >= 10) || lines[0] || "";
+}
+
+function getChatPanelElements() {
+	return Array.from(document.querySelectorAll("body *")).filter((el) => {
+		const rect = el.getBoundingClientRect();
+		// The chat conversation panel is to the right of the conversation list.
+		return isVisible(el) && rect.x > 560 && rect.width > 80 && rect.height > 8;
+	});
+}
+
+function countVisibleChatMessagesContaining(message) {
+	const probe = normalizeText(getMessageProbeText(message));
+	if (!probe) return 0;
+	return getChatPanelElements().filter((el) =>
+		normalizeText(el.innerText || el.textContent).includes(probe),
+	).length;
+}
+
+const SEARCH_RESULT_XPATH =
+	"//div[contains(@data-id,'backstage_search_result_item')]";
+
+function getVisibleSearchResultItems() {
+	return getXPathNodes(SEARCH_RESULT_XPATH).filter(isVisible);
+}
+
+function getSearchResultMatch(user) {
+	const normalizedUser = normalizeText(user).toLowerCase().replace(/^@/, "");
+	const items = getVisibleSearchResultItems().map((el) => ({
+		el,
+		text: normalizeText(el.innerText || el.textContent),
+	}));
+	const exact = items.find((item) =>
+		item.text.toLowerCase().includes(normalizedUser),
+	);
+	return exact || null;
+}
+
+async function waitForSearchResultForUser(user, timeout = 15000) {
+	return await waitUntil(
+		() => {
+			const matched = getSearchResultMatch(user);
+			if (matched) return matched;
+			return null;
+		},
+		{ timeout, message: `search result matching ${user}` },
+	);
+}
+
+function getActiveChatText() {
+	return normalizeText(
+		getChatPanelElements()
+			.map((el) => el.innerText || el.textContent || "")
+			.join(" "),
+	);
+}
+
+async function waitForChatOpenedFromResult(resultText, timeout = 15000) {
+	const distinctive = normalizeText(resultText)
+		.split(" ")
+		.filter((part) => part.length >= 3)
+		.slice(0, 3);
+	return await waitUntil(
+		() => {
+			const textarea = document.evaluate(
+				"//textarea[contains(@class,'semi-input-textarea')]",
+				document,
+				null,
+				XPathResult.FIRST_ORDERED_NODE_TYPE,
+				null,
+			).singleNodeValue;
+			if (!isReadyElement(textarea, { requireEnabled: true })) return null;
+
+			if (distinctive.length === 0) return textarea;
+			const chatText = getActiveChatText();
+			return distinctive.some((part) => chatText.includes(part))
+				? textarea
+				: null;
+		},
+		{ timeout, message: "active chat opened for selected contact" },
+	);
+}
+
+function findSendMessageButton(messageTextarea) {
+	const textareaRect = messageTextarea.getBoundingClientRect();
+	const candidates = Array.from(
+		document.querySelectorAll('button, [role="button"], [data-id]'),
+	)
+		.filter((el) => isReadyElement(el, { requireEnabled: true }))
+		.map((el) => {
+			const rect = el.getBoundingClientRect();
+			const label = [
+				el.getAttribute("data-id") || "",
+				el.getAttribute("aria-label") || "",
+				el.getAttribute("title") || "",
+				el.className || "",
+				el.innerText || el.textContent || "",
+			]
+				.join(" ")
+				.toLowerCase();
+			const nearTextarea =
+				rect.x > textareaRect.left &&
+				rect.y > textareaRect.top - 120 &&
+				rect.y < textareaRect.bottom + 90;
+			const score =
+				(label.includes("send") ? 50 : 0) +
+				(label.includes("发送") ? 50 : 0) +
+				(label.includes("送信") ? 50 : 0) +
+				(label.includes("submit") ? 20 : 0) +
+				(nearTextarea ? 20 : 0) +
+				(rect.x > window.innerWidth * 0.65 ? 8 : 0) +
+				(rect.width <= 80 && rect.height <= 80 ? 4 : 0);
+			return { el, rect, score, label };
+		})
+		.filter((item) => item.score >= 24)
+		.sort((a, b) => b.score - a.score || b.rect.x - a.rect.x);
+	return candidates[0]?.el || null;
+}
+
+async function waitForSendMessageButton(messageTextarea, timeout = 10000) {
+	return await waitUntil(() => findSendMessageButton(messageTextarea), {
+		timeout,
+		message: "send message button node",
+	});
+}
+
+async function clickSendAndWaitForMessage(messageTextarea, message) {
+	const beforeCount = countVisibleChatMessagesContaining(message);
+	const sendButton = await waitForSendMessageButton(messageTextarea, 10000);
+	appendFloatingLog("Clicking real send button...");
+	clickElementLikeUser(sendButton);
+
+	await waitUntil(
+		() => countVisibleChatMessagesContaining(message) > beforeCount,
+		{ timeout: 12000, message: "new outgoing message visible in chat" },
+	);
+}
+
 function sendEnterOnElement(el) {
 	if (!el) throw new Error("sendKeys target not found");
 	el.focus();
@@ -1219,57 +1368,36 @@ async function runSendMessage(step, data) {
 			appendFloatingLog(`Submitting search for @${user}...`);
 			sendEnterOnElement(searchInput);
 
-			// Wait until search results or configured block labels are visible.
-			appendFloatingLog(`Waiting for visible search results for @${user}...`);
-			await waitUntil(
-				async () => {
-					const foundNow = getVisibleXPathCount(
-						"//div[contains(@data-id,'backstage_search_result_item')]",
-					);
-					const blockedNow = await countConfiguredBlockedSearchResults();
-					return foundNow > 0 || blockedNow > 0;
-				},
-				{ timeout: 15000, message: "visible search results" },
-			).catch(() => null);
-
-			// Evaluate search results
-			const found = getVisibleXPathCount(
-				"//div[contains(@data-id,'backstage_search_result_item')]",
+			// Wait until a visible search result specifically matches this username.
+			appendFloatingLog(
+				`Waiting for visible search result matching @${user}...`,
+			);
+			const result = await waitForSearchResultForUser(user, 15000).catch(
+				() => null,
 			);
 			const nottarget = await countConfiguredBlockedSearchResults();
+			const found = result ? 1 : 0;
 			console.log(
-				`[sendMessage] Search ${user}: found=${found}, nottarget=${nottarget}`,
+				`[sendMessage] Search ${user}: matched=${found}, nottarget=${nottarget}`,
 			);
 
-			const ok = found === 1 && nottarget === 0;
+			const ok = Boolean(result) && nottarget === 0;
 			appendFloatingLog(
-				`Search result @${user}: found=${found}, blocked=${nottarget}`,
+				`Search result @${user}: matched=${found}, blocked=${nottarget}`,
 			);
 
 			if (ok) {
-				// Click result only after the result node is visible and enabled.
-				await clickXPath(
-					"//div[contains(@data-id,'backstage_search_result_item')]",
+				appendFloatingLog(`Opening matched contact for @${user}...`);
+				clickElementLikeUser(result.el);
+
+				// Wait until the selected contact's chat is genuinely open and the
+				// message textarea is ready. This prevents sending into the previous chat.
+				appendFloatingLog(`Waiting for active chat to open for @${user}...`);
+				const messageTextarea = await waitForChatOpenedFromResult(
+					result.text,
 					15000,
 				);
-
-				// Wait for chat to load (no error desc elements, if such elements appear).
-				await waitUntil(
-					() => {
-						const error = getXPathCount(
-							"//div[@class[starts-with(., 'desc_')]]",
-						);
-						console.log("[sendMessage] Error class count:", error);
-						return error === 0;
-					},
-					{ timeout: 12000, message: "chat load" },
-				).catch(() => null);
-
-				// Click message textarea only after it is visible and enabled.
-				const messageTextarea = await clickXPath(
-					"//textarea[contains(@class,'semi-input-textarea')]",
-					15000,
-				);
+				clickElementLikeUser(messageTextarea);
 
 				// Type message and wait until it is reflected in the controlled textarea.
 				setElementValue(messageTextarea, msg);
@@ -1295,24 +1423,30 @@ async function runSendMessage(step, data) {
 					// Clear the textarea so the next test user starts from a clean chat.
 					setElementValue(messageTextarea, "");
 				} else {
-					// Send Enter on the same ready textarea node.
-					sendEnterOnElement(messageTextarea);
+					try {
+						await clickSendAndWaitForMessage(messageTextarea, msg);
 
-					await waitUntil(
-						() => !isVisible(messageTextarea) || messageTextarea.value === "",
-						{ timeout: 5000, message: "message sent acknowledgement" },
-					).catch(() => null);
-
-					if (!sentThisRun.has(user)) {
-						newsent.push(user);
-						sentThisRun.add(user);
+						if (!sentThisRun.has(user)) {
+							newsent.push(user);
+							sentThisRun.add(user);
+						}
+						setFloatingStatus(
+							"Send Message",
+							`Sent ${newsent.length}/${chats.length}: @${user}`,
+							"success",
+						);
+						appendFloatingLog(`Sent confirmed: @${user}`, "success");
+					} catch (err) {
+						appendFloatingLog(
+							`Send not confirmed for @${user}: ${err?.message || err}`,
+							"error",
+						);
+						setFloatingStatus(
+							"Send Message",
+							`Send not confirmed: @${user}`,
+							"error",
+						);
 					}
-					setFloatingStatus(
-						"Send Message",
-						`Sent ${newsent.length}/${chats.length}: @${user}`,
-						"success",
-					);
-					appendFloatingLog(`Sent: @${user}`, "success");
 				}
 			} else {
 				console.log(`[sendMessage] Skipped ${user} (not a valid target)`);
