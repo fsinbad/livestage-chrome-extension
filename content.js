@@ -988,7 +988,7 @@ function installLlmFetchProxy() {
 	const originalFetch = window.fetch.bind(window);
 	window.fetch = async (url, options) => {
 		const urlString = String(url);
-		const isLlmRequest = LLM_API_HOSTS.some((host) =
+		const isLlmRequest = LLM_API_HOSTS.some((host) =>
 			urlString.toLowerCase().includes(host),
 		);
 		if (!isLlmRequest) {
