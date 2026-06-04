@@ -1050,17 +1050,19 @@ async function runAgentGetCreator(step, data) {
 		appendFloatingLog(`Engine: ${engine}`);
 		const config = await loadLocalConfig();
 		const loopSize = parseInt(config.loopSize || "10", 10);
+		const sent = parseCsv(config.sent);
 		setFloatingStatus(
 			"クリエイター取得 [Agent]",
-			`開始... 目標 ${loopSize} 人`,
+			`開始... 目標 ${loopSize} 人 (送信済除外 ${sent.length} 件)`,
 		);
 		appendFloatingLog(
-			`[Agent] クリエイター取得を開始しました。目標=${loopSize}`,
+			`[Agent] クリエイター取得を開始しました。目標=${loopSize}、送信済除外=${sent.length}`,
 		);
 		await setState("getCreator", 2, {
 			loopSize,
 			loopIndex: 0,
 			users: [],
+			sent,
 		});
 		if (!url.includes("tiktok.com/live")) {
 			appendFloatingLog("[Agent] TikTok LIVEフィードへ移動中...");
@@ -1071,13 +1073,16 @@ async function runAgentGetCreator(step, data) {
 			loopSize,
 			loopIndex: 0,
 			users: [],
+			sent,
 		});
 	}
 
 	if (step === 2 && url.includes("tiktok.com/live")) {
-		let { loopSize, users = [] } = data;
+		let { loopSize, users = [], sent = [] } = data;
 		users = users ? [...users] : [];
 		const seenUsers = new Set(users);
+		const sentSet = new Set(sent);
+		let skipped = 0;
 
 		ensurePageAgentLoaded();
 		const agent = await createPageAgentInstance();
@@ -1098,9 +1103,14 @@ async function runAgentGetCreator(step, data) {
 			}
 			const first = getCurrentCreatorUsername();
 			if (first && !seenUsers.has(first)) {
-				users.push(first);
-				seenUsers.add(first);
-				appendFloatingLog(`収集済み ${users.length}/${loopSize}: @${first}`);
+				if (sentSet.has(first)) {
+					skipped++;
+					appendFloatingLog(`送信済みのためスキップ: @${first}`);
+				} else {
+					users.push(first);
+					seenUsers.add(first);
+					appendFloatingLog(`収集済み ${users.length}/${loopSize}: @${first}`);
+				}
 			}
 		}
 
@@ -1137,13 +1147,19 @@ async function runAgentGetCreator(step, data) {
 			).catch(() => "");
 
 			if (nextUser) {
-				users.push(nextUser);
-				seenUsers.add(nextUser);
-				appendFloatingLog(`収集済み ${users.length}/${loopSize}: @${nextUser}`);
+				if (sentSet.has(nextUser)) {
+					skipped++;
+					appendFloatingLog(`送信済みのためスキップ: @${nextUser}`);
+				} else {
+					users.push(nextUser);
+					seenUsers.add(nextUser);
+					appendFloatingLog(`収集済み ${users.length}/${loopSize}: @${nextUser}`);
+				}
 				await setState("getCreator", 2, {
 					loopSize,
 					loopIndex: users.length,
 					users,
+					sent: Array.from(sentSet),
 				});
 			} else {
 				appendFloatingLog(
@@ -1154,12 +1170,13 @@ async function runAgentGetCreator(step, data) {
 		}
 
 		if (users.length < loopSize) {
-			const msg = `[Agent getCreator] 目標 ${loopSize} 件、収集 ${users.length} 件。部分保存は行いません。`;
+			const msg = `[Agent getCreator] 目標 ${loopSize} 件、収集 ${users.length} 件、スキップ ${skipped} 件。部分保存は行いません。`;
 			appendFloatingLog(msg, "error");
 			await setState("getCreator", 2, {
 				loopSize,
 				loopIndex: users.length,
 				users,
+				sent: Array.from(sentSet),
 				error: msg,
 			});
 			return;
@@ -1169,7 +1186,7 @@ async function runAgentGetCreator(step, data) {
 		await chrome.storage.local.set({ users: csvDistinct(users) });
 		await clearState();
 		notify(
-			`✅ クリエイター取得完了。${users.length} 人を保存しました。`,
+			`✅ クリエイター取得完了。${users.length} 人を保存しました (スキップ ${skipped} 件)。`,
 			5000,
 			"success",
 		);
@@ -1595,9 +1612,15 @@ async function runGetCreator(step, data) {
 		appendFloatingLog(`Engine: ${engine}`);
 		const config = await loadLocalConfig();
 		const loopSize = parseInt(config.loopSize || "10", 10);
-		const nextData = { loopSize, loopIndex: 0, users: [] };
-		setFloatingStatus("クリエイター取得", `開始... 目標 ${loopSize} 人`);
-		appendFloatingLog(`クリエイター取得を開始しました。目標=${loopSize}`);
+		const sent = parseCsv(config.sent);
+		const nextData = { loopSize, loopIndex: 0, users: [], sent };
+		setFloatingStatus(
+			"クリエイター取得",
+			`開始... 目標 ${loopSize} 人 (送信済除外 ${sent.length} 件)`,
+		);
+		appendFloatingLog(
+			`クリエイター取得を開始しました。目標=${loopSize}、送信済除外=${sent.length}`,
+		);
 		await setState("getCreator", 2, nextData);
 		if (!url.includes("tiktok.com/live")) {
 			appendFloatingLog("TikTok LIVEフィードを開きます...");
@@ -1615,22 +1638,29 @@ async function runGetCreator(step, data) {
 		// Wait for the current TikTok creator data to load.
 		await waitForCreatorAnchor(30000);
 
-		let { users, loopSize } = data;
+		let { users, loopSize, sent = [] } = data;
 		users = users ? [...users] : [];
 		const seenUsers = new Set(users);
+		const sentSet = new Set(sent);
+		let skipped = 0;
 
 		const firstUsername = getCurrentCreatorUsername();
 		if (firstUsername && !seenUsers.has(firstUsername)) {
-			users.push(firstUsername);
-			seenUsers.add(firstUsername);
-			console.log("[getCreator] Found user:", firstUsername);
-			setFloatingStatus(
-				"クリエイター取得",
-				`Collected ${users.length}/${loopSize}: @${firstUsername}`,
-			);
-			appendFloatingLog(
-				`Collected ${users.length}/${loopSize}: @${firstUsername}`,
-			);
+			if (sentSet.has(firstUsername)) {
+				skipped++;
+				appendFloatingLog(`送信済みのためスキップ: @${firstUsername}`);
+			} else {
+				users.push(firstUsername);
+				seenUsers.add(firstUsername);
+				console.log("[getCreator] Found user:", firstUsername);
+				setFloatingStatus(
+					"クリエイター取得",
+					`Collected ${users.length}/${loopSize}: @${firstUsername}`,
+				);
+				appendFloatingLog(
+					`Collected ${users.length}/${loopSize}: @${firstUsername}`,
+				);
+			}
 		}
 
 		let attempts = 0;
@@ -1676,21 +1706,27 @@ async function runGetCreator(step, data) {
 			}
 
 			if (newUser) {
-				users.push(newUser);
-				seenUsers.add(newUser);
-				console.log("[getCreator] Found user:", newUser);
-				setFloatingStatus(
-					"クリエイター取得",
-					`収集済み ${users.length}/${loopSize}: @${newUser}`,
-				);
-				appendFloatingLog(
-					`収集済み ${users.length}/${loopSize}: @${newUser}`,
-					users.length >= loopSize ? "success" : "info",
-				);
+				if (sentSet.has(newUser)) {
+					skipped++;
+					appendFloatingLog(`送信済みのためスキップ: @${newUser}`);
+				} else {
+					users.push(newUser);
+					seenUsers.add(newUser);
+					console.log("[getCreator] Found user:", newUser);
+					setFloatingStatus(
+						"クリエイター取得",
+						`収集済み ${users.length}/${loopSize}: @${newUser}`,
+					);
+					appendFloatingLog(
+						`収集済み ${users.length}/${loopSize}: @${newUser}`,
+						users.length >= loopSize ? "success" : "info",
+					);
+				}
 				await setState("getCreator", 2, {
 					loopSize,
 					loopIndex: users.length,
 					users,
+					sent: Array.from(sentSet),
 				});
 			} else {
 				console.log("[getCreator] New creator data did not load yet, retrying");
@@ -1702,21 +1738,22 @@ async function runGetCreator(step, data) {
 		}
 
 		if (users.length < loopSize) {
-			const message = `[getCreator] Expected ${loopSize} users, collected ${users.length}. Not saving partial result.`;
+			const message = `[getCreator] Expected ${loopSize} users, collected ${users.length}, skipped ${skipped}. Not saving partial result.`;
 			console.warn(message);
 			await setState("getCreator", 2, {
 				loopSize,
 				loopIndex: users.length,
 				users,
+				sent: Array.from(sentSet),
 				error: message,
 			});
 			setFloatingStatus(
 				"クリエイター取得",
-				`停止: ${users.length}/${loopSize} 件収集。保存されていません。`,
+				`停止: ${users.length}/${loopSize} 件収集 (スキップ ${skipped})。保存されていません。`,
 				"error",
 			);
 			appendFloatingLog(
-				`停止: ${users.length}/${loopSize} 件収集。保存されていません。`,
+				`停止: ${users.length}/${loopSize} 件収集 (スキップ ${skipped})。保存されていません。`,
 				"error",
 			);
 			return;
@@ -1727,7 +1764,7 @@ async function runGetCreator(step, data) {
 		console.log("[getCreator] Saved users:", users);
 		await clearState();
 		notify(
-			`✅ クリエイター取得完了。${users.length} 人を保存しました。`,
+			`✅ クリエイター取得完了。${users.length} 人を保存しました (スキップ ${skipped} 件)。`,
 			5000,
 			"success",
 		);
