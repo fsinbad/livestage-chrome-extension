@@ -658,6 +658,7 @@ async function isInviteEligible(status, user) {
 	if (normalized) {
 		return (
 			status.includes("可邀请") ||
+			status.includes("対象") ||
 			normalized.includes("eligible") ||
 			normalized.includes("invitable")
 		);
