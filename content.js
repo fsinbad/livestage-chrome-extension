@@ -724,70 +724,6 @@ function countVisibleChatMessagesContaining(message) {
 	).length;
 }
 
-const SEARCH_RESULT_XPATH =
-	"//div[contains(@data-id,'backstage_search_result_item')]";
-
-function getVisibleSearchResultItems() {
-	return getXPathNodes(SEARCH_RESULT_XPATH).filter(isVisible);
-}
-
-function getSearchResultMatch(user) {
-	const normalizedUser = normalizeText(user).toLowerCase().replace(/^@/, "");
-	const items = getVisibleSearchResultItems().map((el) => ({
-		el,
-		text: normalizeText(el.innerText || el.textContent),
-	}));
-	const exact = items.find((item) =>
-		item.text.toLowerCase().includes(normalizedUser),
-	);
-	return exact || null;
-}
-
-async function waitForSearchResultForUser(user, timeout = 15000) {
-	return await waitUntil(
-		() => {
-			const matched = getSearchResultMatch(user);
-			if (matched) return matched;
-			return null;
-		},
-		{ timeout, message: `search result matching ${user}` },
-	);
-}
-
-function getActiveChatText() {
-	return normalizeText(
-		getChatPanelElements()
-			.map((el) => el.innerText || el.textContent || "")
-			.join(" "),
-	);
-}
-
-async function waitForChatOpenedFromResult(resultText, timeout = 15000) {
-	const distinctive = normalizeText(resultText)
-		.split(" ")
-		.filter((part) => part.length >= 3)
-		.slice(0, 3);
-	return await waitUntil(
-		() => {
-			const textarea = document.evaluate(
-				"//textarea[contains(@class,'semi-input-textarea')]",
-				document,
-				null,
-				XPathResult.FIRST_ORDERED_NODE_TYPE,
-				null,
-			).singleNodeValue;
-			if (!isReadyElement(textarea, { requireEnabled: true })) return null;
-
-			if (distinctive.length === 0) return textarea;
-			const chatText = getActiveChatText();
-			return distinctive.some((part) => chatText.includes(part))
-				? textarea
-				: null;
-		},
-		{ timeout, message: "active chat opened for selected contact" },
-	);
-}
-
 function findSendMessageButton(messageTextarea) {
 	const textareaRect = messageTextarea.getBoundingClientRect();
 	const candidates = Array.from(
@@ -1368,34 +1304,62 @@ async function runSendMessage(step, data) {
 			appendFloatingLog(`Submitting search for @${user}...`);
 			sendEnterOnElement(searchInput);
 
-			// Wait until a visible search result specifically matches this username.
-			appendFloatingLog(
-				`Waiting for visible search result matching @${user}...`,
-			);
-			const result = await waitForSearchResultForUser(user, 15000).catch(
-				() => null,
+			// Wait until search results or configured block labels are visible.
+			appendFloatingLog(`Waiting for visible search results for @${user}...`);
+			await waitUntil(
+				async () => {
+					const foundNow = getVisibleXPathCount(
+						"//div[contains(@data-id,'backstage_search_result_item')]",
+					);
+					const blockedNow = await countConfiguredBlockedSearchResults();
+					return foundNow > 0 || blockedNow > 0;
+				},
+				{ timeout: 15000, message: "visible search results" },
+			).catch(() => null);
+
+			// Evaluate search results
+			const found = getVisibleXPathCount(
+				"//div[contains(@data-id,'backstage_search_result_item')]",
 			);
 			const nottarget = await countConfiguredBlockedSearchResults();
-			const found = result ? 1 : 0;
 			console.log(
-				`[sendMessage] Search ${user}: matched=${found}, nottarget=${nottarget}`,
+				`[sendMessage] Search ${user}: found=${found}, nottarget=${nottarget}`,
 			);
 
-			const ok = Boolean(result) && nottarget === 0;
+			const ok = found === 1 && nottarget === 0;
 			appendFloatingLog(
-				`Search result @${user}: matched=${found}, blocked=${nottarget}`,
+				`Search result @${user}: found=${found}, blocked=${nottarget}`,
 			);
 
 			if (ok) {
-				appendFloatingLog(`Opening matched contact for @${user}...`);
-				clickElementLikeUser(result.el);
-
-				// Wait until the selected contact's chat is genuinely open and the
-				// message textarea is ready. This prevents sending into the previous chat.
-				appendFloatingLog(`Waiting for active chat to open for @${user}...`);
-				const messageTextarea = await waitForChatOpenedFromResult(
-					result.text,
+				// Click the first visible result.
+				appendFloatingLog(`Opening search result for @${user}...`);
+				await clickXPath(
+					"//div[contains(@data-id,'backstage_search_result_item')]",
 					15000,
+				);
+
+				// Wait until search results disappear and the chat textarea is ready.
+				// This confirms the contact's chat has opened, not the previous one.
+				appendFloatingLog(`Waiting for chat to open for @${user}...`);
+				const messageTextarea = await waitUntil(
+					() => {
+						const resultsStillVisible = getVisibleXPathCount(
+							"//div[contains(@data-id,'backstage_search_result_item')]",
+						);
+						if (resultsStillVisible > 0) return null;
+						const textarea = document.evaluate(
+							"//textarea[contains(@class,'semi-input-textarea')]",
+							document,
+							null,
+							XPathResult.FIRST_ORDERED_NODE_TYPE,
+							null,
+						).singleNodeValue;
+						return isReadyElement(textarea, { requireEnabled: true })
+							? textarea
+							: null;
+					},
+					{ timeout: 15000, message: "chat opened with ready textarea" },
 				);
 				clickElementLikeUser(messageTextarea);
 
