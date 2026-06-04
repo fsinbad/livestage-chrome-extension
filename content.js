@@ -712,7 +712,15 @@ function getChatPanelElements() {
 	return Array.from(document.querySelectorAll("body *")).filter((el) => {
 		const rect = el.getBoundingClientRect();
 		// The chat conversation panel is to the right of the conversation list.
-		return isVisible(el) && rect.x > 560 && rect.width > 80 && rect.height > 8;
+		// Exclude inputs/textareas so we only count rendered messages, not draft text.
+		return (
+			isVisible(el) &&
+			rect.x > 560 &&
+			rect.width > 80 &&
+			rect.height > 8 &&
+			el.tagName !== "TEXTAREA" &&
+			el.tagName !== "INPUT"
+		);
 	});
 }
 
@@ -773,9 +781,20 @@ async function clickSendAndWaitForMessage(messageTextarea, message) {
 	appendFloatingLog("Clicking real send button...");
 	clickElementLikeUser(sendButton);
 
+	// Require the message to be stably visible for two consecutive checks.
+	// This avoids false positives from temporary DOM placeholders.
+	let stableChecks = 0;
 	await waitUntil(
-		() => countVisibleChatMessagesContaining(message) > beforeCount,
-		{ timeout: 12000, message: "new outgoing message visible in chat" },
+		() => {
+			const currentCount = countVisibleChatMessagesContaining(message);
+			if (currentCount > beforeCount) {
+				stableChecks++;
+				return stableChecks >= 2;
+			}
+			stableChecks = 0;
+			return false;
+		},
+		{ timeout: 15000, message: "new outgoing message stably visible in chat" },
 	);
 }
 
@@ -1363,6 +1382,15 @@ async function runSendMessage(step, data) {
 				);
 				clickElementLikeUser(messageTextarea);
 
+				// Give the SPA time to settle into the new chat, then ensure the
+				// textarea is empty so we don't append to a stale draft.
+				await new Promise((r) => setTimeout(r, 2000));
+				if (messageTextarea.value && messageTextarea.value.trim()) {
+					appendFloatingLog("Clearing stale textarea before typing...");
+					setElementValue(messageTextarea, "");
+					await new Promise((r) => setTimeout(r, 300));
+				}
+
 				// Type message and wait until it is reflected in the controlled textarea.
 				setElementValue(messageTextarea, msg);
 				await waitUntil(() => messageTextarea.value === msg, {
@@ -1400,6 +1428,10 @@ async function runSendMessage(step, data) {
 							"success",
 						);
 						appendFloatingLog(`Sent confirmed: @${user}`, "success");
+
+						// Let the browser finish the network request before moving on.
+						appendFloatingLog("Settling before next user...");
+						await new Promise((r) => setTimeout(r, 2000));
 					} catch (err) {
 						appendFloatingLog(
 							`Send not confirmed for @${user}: ${err?.message || err}`,
@@ -1434,6 +1466,9 @@ async function runSendMessage(step, data) {
 			await appendLocalSent(csvDistinct(newsent));
 			console.log("[sendMessage] Saved sent to local config:", newsent);
 		}
+		// Extra wait for the last message to fully sync before ending.
+		appendFloatingLog("Final settling before completion...");
+		await new Promise((r) => setTimeout(r, 4000));
 		await clearState();
 		notify(
 			testMode
