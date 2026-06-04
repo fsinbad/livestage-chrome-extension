@@ -1131,7 +1131,7 @@ async function runAgentGetCreator(step, data) {
 			try {
 				await executeAgentStep(
 					agent,
-					"Press the Down Arrow key on the keyboard to navigate to the next recommended live stream creator on the main feed.",
+					"Click the small circular down arrow button on the right side of the video player. It is a white/light colored circular button with a down arrow inside, located near the middle-right edge of the screen, next to the video feed. This button switches to the next live stream creator.",
 					20000,
 				);
 			} catch (err) {
