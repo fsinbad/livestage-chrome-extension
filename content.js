@@ -651,11 +651,52 @@ async function waitForNewCreatorUsername(
 	);
 }
 
-async function isInviteEligible(_status, user) {
-	// Do NOT rely on status text (language-dependent).
-	// Instead, check if the row has an enabled invite action button.
-	// A visible, non-disabled action button means this user is eligible.
-	return Boolean(getInviteCandidateActionButton(user));
+async function isInviteEligible(status, _user) {
+	const s = String(status || "").trim();
+	if (!s) {
+		// No status text read — fallback to action-button presence.
+		return true;
+	}
+
+	// Negative phrases (any language). If matched, immediately ineligible.
+	const negatives = [
+		"対象外",
+		"不可",
+		"不可邀请",
+		"not eligible",
+		"ineligible",
+		"not invitable",
+		"invited",
+		"already invited",
+		"招待済み",
+		"已邀请",
+		"declined",
+		"rejected",
+		"拒否",
+		"拒绝",
+		"other agency",
+		"other reason",
+		"その他",
+		"他の",
+	];
+	const lower = s.toLowerCase();
+	for (const neg of negatives) {
+		if (s.includes(neg) || lower.includes(neg.toLowerCase())) return false;
+	}
+
+	// Positive phrases (any language). If matched, eligible.
+	const positives = [
+		"対象",
+		"可邀请",
+		"eligible",
+		"invitable",
+	];
+	for (const pos of positives) {
+		if (s.includes(pos) || lower.includes(pos.toLowerCase())) return true;
+	}
+
+	// Unknown status text — treat as eligible (safer to keep than discard).
+	return true;
 }
 
 async function countConfiguredBlockedSearchResults() {
