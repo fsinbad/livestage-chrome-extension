@@ -959,6 +959,10 @@ const PROVIDER_DEFAULTS = {
 		model: "claude-3-sonnet-20240229",
 		baseURL: "https://api.anthropic.com/v1",
 	},
+	deepseek: {
+		model: "deepseek-chat",
+		baseURL: "https://api.deepseek.com/v1",
+	},
 };
 
 function ensurePageAgentLoaded() {
@@ -967,6 +971,51 @@ function ensurePageAgentLoaded() {
 			"PageAgentが読み込まれていません。page-agent.iife.jsがmanifest内でcontent.jsより先に記載されていることを確認してください。",
 		);
 	}
+}
+
+const LLM_API_HOSTS = [
+	"api.kimi.com",
+	"dashscope.aliyuncs.com",
+	"api.openai.com",
+	"api.anthropic.com",
+	"api.deepseek.com",
+];
+
+function installLlmFetchProxy() {
+	if (window.__tkLlmFetchProxyInstalled) return;
+	window.__tkLlmFetchProxyInstalled = true;
+
+	const originalFetch = window.fetch.bind(window);
+	window.fetch = async (url, options) => {
+		const urlString = String(url);
+		const isLlmRequest = LLM_API_HOSTS.some((host) =
+			urlString.toLowerCase().includes(host),
+		);
+		if (!isLlmRequest) {
+			return originalFetch(url, options);
+		}
+
+		console.log("[TikTok Auto] Proxying LLM fetch via background:", urlString);
+		const response = await chrome.runtime.sendMessage({
+			action: "proxyFetch",
+			url: urlString,
+			options: {
+				method: options?.method || "GET",
+				headers: options?.headers,
+				body: options?.body,
+			},
+		});
+
+		if (response?.status === 0) {
+			throw new Error(response.body || "LLM API network error via proxy");
+		}
+
+		return new Response(response?.body || "", {
+			status: response?.status || 200,
+			statusText: response?.statusText || "OK",
+			headers: response?.headers || {},
+		});
+	};
 }
 
 async function createPageAgentInstance() {
@@ -987,9 +1036,15 @@ async function createPageAgentInstance() {
 		);
 	}
 
+	// Normalize baseURL to avoid double slashes like https://host/path//chat/completions
+	let baseURL = config.llmBaseURL || defaults.baseURL;
+	baseURL = baseURL.replace(/\/+$/, "");
+
+	installLlmFetchProxy();
+
 	return new globalThis.PageAgent({
 		model: config.llmModel || defaults.model,
-		baseURL: config.llmBaseURL || defaults.baseURL,
+		baseURL,
 		apiKey,
 		language: config.llmLanguage || "ja-JP",
 	});

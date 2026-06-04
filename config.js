@@ -39,5 +39,5 @@ globalThis.TK_DEFAULT_CONFIG = {
 	llmModel: "",
 	llmBaseURL: "",
 	llmApiKey: "",
-	llmLanguage: "ja-JP",
+	llmLanguage: "en-US",
 };
