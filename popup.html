@@ -155,7 +155,7 @@
     </h1>
 
     <div class="engine-row">
-      <label class="engine-label">Engine:</label>
+      <label class="engine-label">エンジン:</label>
       <select id="engineSelect" class="engine-select">
         <option value="dom">DOM</option>
         <option value="agent">Agent</option>
@@ -163,23 +163,23 @@
     </div>
 
     <button id="btnGetCreator" class="task-button" data-task="getCreator">
-      1. Get Creators
+      1. クリエイター取得
     </button>
     <button id="btnInvite" class="task-button" data-task="invite">
-      2. Invite
+      2. 招待チェック
     </button>
     <button id="btnSend" class="task-button" data-task="sendMessage">
-      3. Send Message
+      3. メッセージ送信
     </button>
 
     <div class="divider"></div>
-    <button id="btnConfig" class="config-button">Config</button>
-    <button id="btnStop" class="stop-button" disabled>STOP</button>
+    <button id="btnConfig" class="config-button">設定</button>
+    <button id="btnStop" class="stop-button" disabled>停止</button>
 
-    <div class="status" id="status">Ready — click a task to start</div>
+    <div class="status" id="status">準備完了 — タスクをクリックして開始</div>
     <div class="hint">
-      Make sure you're logged into TikTok backstage.<br />
-      loopSize / msg / sent are stored in local extension config.
+      TikTok Backstage にログインしていることを確認してください。<br />
+      loopSize / msg / sent は拡張機能のローカル設定に保存されます。
     </div>
 
     <script src="popup.js"></script>

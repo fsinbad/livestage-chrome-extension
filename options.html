@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>TikTok Live Automation Config</title>
+    <title>TikTok Live Automation 設定</title>
     <style>
       * {
         box-sizing: border-box;
@@ -150,41 +150,36 @@
         <header>
           <img src="icons/icon48.png" alt="LIVE Backstage" />
           <div>
-            <h1>TikTok Live Automation Config</h1>
+            <h1>TikTok Live Automation 設定</h1>
           </div>
         </header>
 
         <form id="configForm">
           <div class="field">
-            <label for="engine">Execution Engine / 実行エンジン</label>
+            <label for="engine">実行エンジン</label>
             <select id="engine" name="engine">
-              <option value="dom">DOM (确定性操作)</option>
-              <option value="agent">Agent (AI 自然语言驱动)</option>
+              <option value="dom">DOM</option>
+              <option value="agent">Agent</option>
             </select>
-            <div class="help">
-              DOM: 精确 selector 操作（快、免费）。Agent: PageAgent + LLM
-              自然语言驱动（慢、消耗 token，但不怕 DOM 改版）。
-            </div>
           </div>
 
           <div class="field">
-            <label for="llmProvider">LLM Provider / プロバイダー</label>
+            <label for="llmProvider">LLM プロバイダー</label>
             <select id="llmProvider" name="llmProvider">
-              <option value="tongyi">通义千问 (阿里云)</option>
               <option value="openai">OpenAI</option>
               <option value="claude">Claude (Anthropic)</option>
             </select>
           </div>
 
           <div class="field">
-            <label for="llmModel">Model / モデル</label>
+            <label for="llmModel">モデル</label>
             <input
               id="llmModel"
               name="llmModel"
               type="text"
-              placeholder="qwen3.5-plus"
+              placeholder="kimi-for-coding"
             />
-            <div class="help">Leave empty to use provider default.</div>
+            <div class="help">空欄の場合、プロバイダーのデフォルトモデルを使用します。</div>
           </div>
 
           <div class="field">
@@ -193,9 +188,9 @@
               id="llmBaseURL"
               name="llmBaseURL"
               type="text"
-              placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+              placeholder="https://api.kimi.com/coding/v1"
             />
-            <div class="help">Leave empty to use provider default.</div>
+            <div class="help">空欄の場合、プロバイダーのデフォルトURLを使用します。</div>
           </div>
 
           <div class="field">
@@ -207,12 +202,12 @@
               placeholder="sk-..."
             />
             <div class="help">
-              Your LLM API key. Stored locally in chrome.storage.
+              LLM の API Key。chrome.storage にローカル保存されます。
             </div>
           </div>
 
           <div class="field">
-            <label for="llmLanguage">Language / 言語</label>
+            <label for="llmLanguage">言語</label>
             <input
               id="llmLanguage"
               name="llmLanguage"
@@ -220,12 +215,12 @@
               placeholder="ja-JP"
             />
             <div class="help">
-              PageAgent language setting (e.g. ja-JP, en-US, zh-CN).
+              PageAgent の言語設定（例: ja-JP, en-US, zh-CN）。
             </div>
           </div>
 
           <div class="field">
-            <label for="loopSize">loopSize / 送信先人数</label>
+            <label for="loopSize">収集人数（loopSize）</label>
             <input
               id="loopSize"
               name="loopSize"
@@ -234,48 +229,48 @@
               step="1"
             />
             <div class="help">
-              Get Creators will collect this many TikTok usernames.
+              クリエイター取得で収集する TikTok ユーザー名の数。
             </div>
           </div>
 
           <div class="field">
-            <label for="msg">msg / 送信内容</label>
+            <label for="msg">送信内容（msg）</label>
             <textarea
               id="msg"
               name="msg"
-              placeholder="Message to send..."
+              placeholder="送信するメッセージ..."
             ></textarea>
-            <div class="help">Send Message uses this exact text.</div>
+            <div class="help">メッセージ送信で使用されるテキスト。</div>
           </div>
 
           <div class="field">
-            <label for="sent">sent / 送信済</label>
+            <label for="sent">送信済リスト（sent）</label>
             <textarea
               id="sent"
               name="sent"
               placeholder="user1,user2,user3"
             ></textarea>
             <div class="help">
-              Comma-separated sent usernames. Send Message skips these users and
-              appends new sent users here.
+              カンマ区切りの送信済ユーザー名。メッセージ送信はこれらのユーザーをスキップし、
+              新しく送信したユーザーを追加します。
             </div>
           </div>
 
           <div class="field switch-row">
             <input id="testMode" name="testMode" type="checkbox" />
             <div>
-              <label for="testMode">Test mode / テスト送信</label>
+              <label for="testMode">テストモード</label>
               <div class="help">
-                When enabled, Send Message searches users and fills the message,
-                but does not press Enter or update sent.
+                有効時、メッセージ送信はユーザーを検索してメッセージを入力しますが、
+                Enter を押さず、送信済リストも更新しません。
               </div>
             </div>
           </div>
 
           <div class="actions">
-            <button class="primary" type="submit">Save Config</button>
+            <button class="primary" type="submit">設定を保存</button>
             <button class="secondary" type="button" id="reloadBtn">
-              Reload
+              再読み込み
             </button>
             <span class="status" id="status"></span>
           </div>

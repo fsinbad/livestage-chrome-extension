@@ -33,9 +33,9 @@ globalThis.TK_DEFAULT_CONFIG = {
 	sent: "",
 	testMode: false,
 	// Engine selection: "dom" | "agent"
-	engine: "dom",
+	engine: "agent",
 	// LLM config for PageAgent agent engine
-	llmProvider: "tongyi",
+	llmProvider: "openai",
 	llmModel: "",
 	llmBaseURL: "",
 	llmApiKey: "",

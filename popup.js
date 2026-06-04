@@ -9,15 +9,15 @@ const engineSelect = document.getElementById("engineSelect");
 const statusEl = document.getElementById("status");
 
 const taskLabels = {
-	getCreator: "1. Get Creators",
-	invite: "2. Invite",
-	sendMessage: "3. Send Message",
+	getCreator: "1. クリエイター取得",
+	invite: "2. 招待チェック",
+	sendMessage: "3. メッセージ送信",
 };
 
 const runningLabels = {
-	getCreator: "Running Get Creators...",
-	invite: "Running Invite...",
-	sendMessage: "Running Send Message...",
+	getCreator: "クリエイター取得実行中...",
+	invite: "招待チェック実行中...",
+	sendMessage: "メッセージ送信中...",
 };
 
 function setStatus(text) {
@@ -41,8 +41,8 @@ function setUiState({ task = null, step = 0 } = {}) {
 	stopButton.disabled = !isRunning;
 	setStatus(
 		isRunning
-			? `Running: ${task} (step ${step ?? 0})`
-			: "Ready — click a task to start",
+			? `実行中: ${task} (ステップ ${step ?? 0})`
+			: "準備完了 — タスクをクリックして開始",
 	);
 }
 
@@ -118,7 +118,7 @@ stopButton.addEventListener("click", async () => {
 	if (stopButton.disabled) return;
 	await chrome.storage.local.remove(["tkTask", "tkStep", "tkData"]);
 	setUiState();
-	setStatus("Stopped. Refresh the page to cancel any in-flight DOM actions.");
+	setStatus("停止しました。ページを更新すると実行中の操作がキャンセルされます。");
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

@@ -320,13 +320,13 @@ async function waitForInviteBackButton(timeout = 10000) {
 async function openInstantMessagesPage() {
 	if (location.href.includes("/portal/anchor/instant-messages")) {
 		appendFloatingLog(
-			"Already on instant messages page; waiting for search input...",
+			"既にインスタントメッセージページです。検索入力を待機中...",
 		);
 		await waitForInstantMessageSearchInput(15000);
 		return true;
 	}
 
-	appendFloatingLog("Waiting for instant messages menu node...");
+	appendFloatingLog("インスタントメッセージメニューを待機中...");
 	let instantMenu = await waitUntil(
 		() => {
 			const el = document.querySelector(
@@ -339,7 +339,7 @@ async function openInstantMessagesPage() {
 	).catch(() => null);
 
 	if (!instantMenu) {
-		appendFloatingLog("Instant menu hidden; opening anchor menu...");
+		appendFloatingLog("インスタントメニューが非表示です。アンカーメニューを開きます...");
 		const anchorMenu = await waitUntil(
 			() => {
 				const el = document.querySelector('[data-id="menu-anchor"]');
@@ -365,9 +365,9 @@ async function openInstantMessagesPage() {
 		}
 	}
 
-	if (!instantMenu) throw new Error("Instant messages menu not found");
+	if (!instantMenu) throw new Error("インスタントメッセージメニューが見つかりません");
 
-	appendFloatingLog("Clicking instant messages menu...");
+	appendFloatingLog("インスタントメッセージメニューをクリック中...");
 	clickElementLikeUser(instantMenu);
 	await waitUntil(
 		() => location.href.includes("/portal/anchor/instant-messages"),
@@ -778,7 +778,7 @@ async function waitForSendMessageButton(messageTextarea, timeout = 10000) {
 async function clickSendAndWaitForMessage(messageTextarea, message) {
 	const beforeCount = countVisibleChatMessagesContaining(message);
 	const sendButton = await waitForSendMessageButton(messageTextarea, 10000);
-	appendFloatingLog("Clicking real send button...");
+	appendFloatingLog("実際の送信ボタンをクリック中...");
 	clickElementLikeUser(sendButton);
 
 	// Require the message to be stably visible for two consecutive checks.
@@ -799,7 +799,7 @@ async function clickSendAndWaitForMessage(messageTextarea, message) {
 }
 
 function sendEnterOnElement(el) {
-	if (!el) throw new Error("sendKeys target not found");
+	if (!el) throw new Error("sendKeys対象が見つかりません");
 	el.focus();
 	["keydown", "keypress", "keyup"].forEach((type) => {
 		el.dispatchEvent(
@@ -961,7 +961,7 @@ const PROVIDER_DEFAULTS = {
 function ensurePageAgentLoaded() {
 	if (!globalThis.PageAgent) {
 		throw new Error(
-			"PageAgent is not loaded. Make sure page-agent.iife.js is listed before content.js in manifest.",
+			"PageAgentが読み込まれていません。page-agent.iife.jsがmanifest内でcontent.jsより先に記載されていることを確認してください。",
 		);
 	}
 }
@@ -980,7 +980,7 @@ async function createPageAgentInstance() {
 	const apiKey = config.llmApiKey;
 	if (!apiKey) {
 		throw new Error(
-			"LLM API Key is not configured. Open Config page and set it.",
+			"LLM API Keyが設定されていません。設定ページを開いて入力してください。",
 		);
 	}
 
@@ -1010,11 +1010,11 @@ async function executeAgentStep(agent, instruction, timeout = 60000) {
 				),
 			),
 		]);
-		appendFloatingLog(`[Agent] ✓ Done (${Date.now() - start}ms)`, "success");
+		appendFloatingLog(`[Agent] ✓ 完了 (${Date.now() - start}ms)`, "success");
 		return result;
 	} catch (err) {
 		appendFloatingLog(
-			`[Agent] ✗ Failed (${Date.now() - start}ms): ${err?.message || err}`,
+			`[Agent] ✗ 失敗 (${Date.now() - start}ms): ${err?.message || err}`,
 			"error",
 		);
 		throw err;
@@ -1032,17 +1032,17 @@ async function runAgentGetCreator(step, data) {
 		const config = await loadLocalConfig();
 		const loopSize = parseInt(config.loopSize || "10", 10);
 		setFloatingStatus(
-			"Get Creators [Agent]",
-			`Starting... target ${loopSize} users`,
+			"クリエイター取得 [Agent]",
+			`開始... 目標 ${loopSize} 人`,
 		);
-		appendFloatingLog(`[Agent] Get Creators started. target=${loopSize}`);
+		appendFloatingLog(`[Agent] クリエイター取得を開始しました。目標=${loopSize}`);
 		await setState("getCreator", 2, {
 			loopSize,
 			loopIndex: 0,
 			users: [],
 		});
 		if (!url.includes("tiktok.com/live")) {
-			appendFloatingLog("[Agent] Navigating to TikTok LIVE feed...");
+			appendFloatingLog("[Agent] TikTok LIVEフィードへ移動中...");
 			navigate("https://www.tiktok.com/live?lang=ja-JP");
 			return;
 		}
@@ -1079,7 +1079,7 @@ async function runAgentGetCreator(step, data) {
 			if (first && !seenUsers.has(first)) {
 				users.push(first);
 				seenUsers.add(first);
-				appendFloatingLog(`Collected ${users.length}/${loopSize}: @${first}`);
+				appendFloatingLog(`収集済み ${users.length}/${loopSize}: @${first}`);
 			}
 		}
 
@@ -1119,7 +1119,7 @@ async function runAgentGetCreator(step, data) {
 				users.push(nextUser);
 				seenUsers.add(nextUser);
 				appendFloatingLog(
-					`Collected ${users.length}/${loopSize}: @${nextUser}`,
+					`収集済み ${users.length}/${loopSize}: @${nextUser}`,
 				);
 				await setState("getCreator", 2, {
 					loopSize,
@@ -1128,14 +1128,14 @@ async function runAgentGetCreator(step, data) {
 				});
 			} else {
 				appendFloatingLog(
-					`No new creator after attempt ${attempts}/${maxAttempts}`,
+					`試行 ${attempts}/${maxAttempts} 後に新しいクリエイターが見つかりませんでした`,
 					"error",
 				);
 			}
 		}
 
 		if (users.length < loopSize) {
-			const msg = `[Agent getCreator] Expected ${loopSize}, collected ${users.length}. Not saving partial.`;
+			const msg = `[Agent getCreator] 目標 ${loopSize} 件、収集 ${users.length} 件。部分保存は行いません。`;
 			appendFloatingLog(msg, "error");
 			await setState("getCreator", 2, {
 				loopSize,
@@ -1150,7 +1150,7 @@ async function runAgentGetCreator(step, data) {
 		await chrome.storage.local.set({ users: csvDistinct(users) });
 		await clearState();
 		notify(
-			`✅ Agent Get Creators completed. Saved ${users.length} users.`,
+			`✅ クリエイター取得完了。${users.length} 人を保存しました。`,
 			5000,
 			"success",
 		);
@@ -1167,11 +1167,11 @@ async function runAgentInvite(step, data) {
 		appendFloatingLog(`Engine: ${engine}`);
 		const stored = await chrome.storage.local.get(["users"]);
 		const users = parseCsv(stored.users);
-		setFloatingStatus("Invite [Agent]", `Starting... ${users.length} users`);
-		appendFloatingLog(`[Agent] Invite started. users=${users.length}`);
+		setFloatingStatus("招待チェック [Agent]", `開始... ${users.length} 人`);
+		appendFloatingLog(`[Agent] 招待チェックを開始しました。users=${users.length}`);
 		if (users.length === 0) {
 			await clearState();
-			notify("❌ No users found. Run Get Creators first.", 5000, "error");
+			notify("❌ ユーザーが見つかりません。先にクリエイター取得を実行してください。", 5000, "error");
 			return;
 		}
 		const nextData = { users, chats: [], inviteIndex: 0 };
@@ -1201,7 +1201,7 @@ async function runAgentInvite(step, data) {
 		for (let i = inviteIndex; i < users.length; i++) {
 			if (!(await isTaskActive("invite"))) return;
 			const user = users[i];
-			appendFloatingLog(`[Agent] Checking ${i + 1}/${users.length}: @${user}`);
+			appendFloatingLog(`[Agent] 確認中 ${i + 1}/${users.length}: @${user}`);
 
 			// Type username via Agent (or DOM fallback)
 			const textarea = await waitForElementReady(
@@ -1224,7 +1224,7 @@ async function runAgentInvite(step, data) {
 				);
 			} catch (err) {
 				appendFloatingLog(
-					`[Agent] Next button failed: ${err?.message || err}`,
+					`[Agent] 次へボタンの失敗: ${err?.message || err}`,
 					"error",
 				);
 				const nextBtn = await waitForInviteNextButton(10000);
@@ -1244,9 +1244,9 @@ async function runAgentInvite(step, data) {
 			if ((await isInviteEligible(status, user)) && !seenChats.has(user)) {
 				chats.push(user);
 				seenChats.add(user);
-				appendFloatingLog(`Eligible saved: @${user} (${status})`, "success");
+				appendFloatingLog(`対象を保存しました: @${user} (${status})`, "success");
 			} else {
-				appendFloatingLog(`Skipped: @${user} (${status})`);
+				appendFloatingLog(`スキップ: @${user} (${status})`);
 			}
 
 			// Go back
@@ -1258,7 +1258,7 @@ async function runAgentInvite(step, data) {
 				);
 			} catch (err) {
 				appendFloatingLog(
-					`[Agent] Back button failed: ${err?.message || err}`,
+					`[Agent] 戻るボタンの失敗: ${err?.message || err}`,
 					"error",
 				);
 				const backBtn = await waitForInviteBackButton(10000);
@@ -1273,7 +1273,7 @@ async function runAgentInvite(step, data) {
 		await chrome.storage.local.set({ chats: csvDistinct(chats) });
 		await clearState();
 		notify(
-			`✅ Agent Invite completed. Matched ${chats.length}/${users.length}.`,
+			`✅ 招待チェック完了。${chats.length}/${users.length} 件一致しました。`,
 			5000,
 			"success",
 		);
@@ -1296,21 +1296,21 @@ async function runAgentSendMessage(step, data) {
 		const chats = parseCsv(stored.chats).filter((item) => !sent.includes(item));
 
 		setFloatingStatus(
-			"Send Message [Agent]",
-			`Starting... ${chats.length} chats, ${sent.length} already sent`,
+			"メッセージ送信 [Agent]",
+			`開始... ${chats.length} 件、${sent.length} 件送信済み`,
 		);
 		appendFloatingLog(
-			`[Agent] Send Message started. chats=${chats.length}, alreadySent=${sent.length}, testMode=${testMode ? "ON" : "OFF"}`,
+			`[Agent] メッセージ送信を開始しました。chats=${chats.length}, alreadySent=${sent.length}, testMode=${testMode ? "ON" : "OFF"}`,
 		);
 
 		if (!msg.trim()) {
 			await clearState();
-			notify("❌ Message is empty. Set msg in Config first.", 5000, "error");
+			notify("❌ メッセージが空です。先に設定でメッセージを入力してください。", 5000, "error");
 			return;
 		}
 		if (chats.length === 0) {
 			await clearState();
-			notify("❌ No chats to send. Run Invite first.", 5000, "error");
+			notify("❌ 送信するチャットがありません。先に招待チェックを実行してください。", 5000, "error");
 			return;
 		}
 
@@ -1354,7 +1354,7 @@ async function runAgentSendMessage(step, data) {
 			if (!(await isTaskActive("sendMessage"))) return;
 			const user = chats[i];
 			appendFloatingLog(
-				`[Agent] Processing ${i + 1}/${chats.length}: @${user}`,
+				`[Agent] 処理中 ${i + 1}/${chats.length}: @${user}`,
 			);
 
 			// Search input via Agent + DOM fallback
@@ -1366,11 +1366,11 @@ async function runAgentSendMessage(step, data) {
 				message: "search input value",
 			});
 			await tick();
-			appendFloatingLog(`[Agent] Submitting search for @${user}...`);
+			appendFloatingLog(`[Agent] @${user} の検索を送信中...`);
 			sendEnterOnElement(searchInput);
 
 			// Wait results
-			appendFloatingLog(`[Agent] Waiting for search results...`);
+			appendFloatingLog(`[Agent] 検索結果を待機中...`);
 			await waitUntil(
 				async () => {
 					const foundNow = getVisibleXPathCount(
@@ -1388,11 +1388,11 @@ async function runAgentSendMessage(step, data) {
 			const nottarget = await countConfiguredBlockedSearchResults();
 			const ok = found === 1 && nottarget === 0;
 			appendFloatingLog(
-				`Search result @${user}: found=${found}, blocked=${nottarget}`,
+				`検索結果 @${user}: 発見=${found}, ブロック=${nottarget}`,
 			);
 
 			if (!ok) {
-				appendFloatingLog(`Skipped: @${user} (not a valid target)`);
+				appendFloatingLog(`スキップ: @${user} (有効な対象ではありません)`);
 				await setState("sendMessage", 2, {
 					msg,
 					chats,
@@ -1413,7 +1413,7 @@ async function runAgentSendMessage(step, data) {
 				);
 			} catch (err) {
 				appendFloatingLog(
-					`[Agent] Click result failed: ${err?.message || err}`,
+					`[Agent] 結果のクリック失敗: ${err?.message || err}`,
 					"error",
 				);
 				await clickXPath(
@@ -1423,7 +1423,7 @@ async function runAgentSendMessage(step, data) {
 			}
 
 			// Wait chat open
-			appendFloatingLog(`[Agent] Waiting for chat to open...`);
+			appendFloatingLog(`[Agent] チャットのオープンを待機中...`);
 			const messageTextarea = await waitUntil(
 				() => {
 					const resultsStillVisible = getVisibleXPathCount(
@@ -1459,7 +1459,7 @@ async function runAgentSendMessage(step, data) {
 
 			if (testMode) {
 				appendFloatingLog(
-					`TEST MODE: message filled for @${user}; not sent.`,
+					`テストモード: @${user} のメッセージ入力済み。送信は行いません。`,
 					"success",
 				);
 				if (!testedThisRun.has(user)) {
@@ -1477,7 +1477,7 @@ async function runAgentSendMessage(step, data) {
 					);
 				} catch (err) {
 					appendFloatingLog(
-						`[Agent] Send button click failed: ${err?.message || err}`,
+						`[Agent] 送信ボタンのクリック失敗: ${err?.message || err}`,
 						"error",
 					);
 					// Fallback to DOM send button
@@ -1485,7 +1485,7 @@ async function runAgentSendMessage(step, data) {
 						await clickSendAndWaitForMessage(messageTextarea, msg);
 					} catch (fallbackErr) {
 						appendFloatingLog(
-							`Send not confirmed for @${user}: ${fallbackErr?.message || fallbackErr}`,
+							`送信未確認 @${user}: ${fallbackErr?.message || fallbackErr}`,
 							"error",
 						);
 						await setState("sendMessage", 2, {
@@ -1510,7 +1510,7 @@ async function runAgentSendMessage(step, data) {
 						newsent.push(user);
 						sentThisRun.add(user);
 					}
-					appendFloatingLog(`Sent confirmed: @${user}`, "success");
+					appendFloatingLog(`送信確認済み: @${user}`, "success");
 				} catch (verifyErr) {
 					appendFloatingLog(
 						`Send not confirmed for @${user}: ${verifyErr?.message || verifyErr}`,
@@ -1518,7 +1518,7 @@ async function runAgentSendMessage(step, data) {
 					);
 				}
 
-				appendFloatingLog("Settling before next user...");
+				appendFloatingLog("次のユーザー前に待機中...");
 				await new Promise((r) => setTimeout(r, 2000));
 			}
 
@@ -1536,13 +1536,13 @@ async function runAgentSendMessage(step, data) {
 		if (!testMode) {
 			await appendLocalSent(csvDistinct(newsent));
 		}
-		appendFloatingLog("Final settling before completion...");
+		appendFloatingLog("完了前の最終待機中...");
 		await new Promise((r) => setTimeout(r, 4000));
 		await clearState();
 		notify(
 			testMode
-				? `✅ Agent Test completed. Tested ${tested.length}/${chats.length}.`
-				: `✅ Agent Send completed. Sent ${newsent.length}/${chats.length}.`,
+				? `✅ エージェントテスト完了。${tested.length}/${chats.length} 件をテストしました。`
+				: `✅ エージェント送信完了。${newsent.length}/${chats.length} 件送信しました。`,
 			5000,
 			"success",
 		);
@@ -1562,11 +1562,11 @@ async function runGetCreator(step, data) {
 		const config = await loadLocalConfig();
 		const loopSize = parseInt(config.loopSize || "10", 10);
 		const nextData = { loopSize, loopIndex: 0, users: [] };
-		setFloatingStatus("Get Creators", `Starting... target ${loopSize} users`);
-		appendFloatingLog(`Get Creators started. target=${loopSize}`);
+		setFloatingStatus("クリエイター取得", `開始... 目標 ${loopSize} 人`);
+		appendFloatingLog(`クリエイター取得を開始しました。目標=${loopSize}`);
 		await setState("getCreator", 2, nextData);
 		if (!url.includes("tiktok.com/live")) {
-			appendFloatingLog("Opening TikTok LIVE feed...");
+			appendFloatingLog("TikTok LIVEフィードを開きます...");
 			navigate("https://www.tiktok.com/live?lang=ja-JP");
 			return;
 		}
@@ -1574,7 +1574,7 @@ async function runGetCreator(step, data) {
 	}
 
 	if (step === 2 && url.includes("tiktok.com/live")) {
-		setFloatingStatus("Get Creators", "Waiting for current LIVE creator...");
+		setFloatingStatus("クリエイター取得", "Waiting for current LIVE creator...");
 		// Wait for the current TikTok creator data to load.
 		await waitForCreatorAnchor(30000);
 
@@ -1588,7 +1588,7 @@ async function runGetCreator(step, data) {
 			seenUsers.add(firstUsername);
 			console.log("[getCreator] Found user:", firstUsername);
 			setFloatingStatus(
-				"Get Creators",
+				"クリエイター取得",
 				`Collected ${users.length}/${loopSize}: @${firstUsername}`,
 			);
 			appendFloatingLog(
@@ -1604,17 +1604,17 @@ async function runGetCreator(step, data) {
 
 			const previousUsername = getCurrentCreatorUsername();
 			setFloatingStatus(
-				"Get Creators",
+				"クリエイター取得",
 				`Collected ${users.length}/${loopSize}. Moving to next creator...`,
 			);
-			appendFloatingLog(`Moving next from @${previousUsername || "unknown"}`);
+			appendFloatingLog(`@${previousUsername || "不明"} から次へ移動`);
 
 			const nextControl = findLiveNextControl();
 			if (nextControl) {
 				clickElementLikeUser(nextControl);
 			} else {
 				appendFloatingLog(
-					"Right-side next control not found; using scroll fallback",
+					"右側の次へコントロールが見つかりません。スクロールで代替します",
 					"error",
 				);
 			}
@@ -1628,7 +1628,7 @@ async function runGetCreator(step, data) {
 
 			if (!newUser) {
 				appendFloatingLog(
-					"Click did not change creator; scrolling to next LIVE card...",
+					"クリックでクリエイターが変わりませんでした。次のLIVEカードへスクロールします...",
 				);
 				scrollToNextCreatorCard(previousUsername, seenUsers);
 				newUser = await waitForNewCreatorUsername(
@@ -1643,11 +1643,11 @@ async function runGetCreator(step, data) {
 				seenUsers.add(newUser);
 				console.log("[getCreator] Found user:", newUser);
 				setFloatingStatus(
-					"Get Creators",
-					`Collected ${users.length}/${loopSize}: @${newUser}`,
+					"クリエイター取得",
+					`収集済み ${users.length}/${loopSize}: @${newUser}`,
 				);
 				appendFloatingLog(
-					`Collected ${users.length}/${loopSize}: @${newUser}`,
+					`収集済み ${users.length}/${loopSize}: @${newUser}`,
 					users.length >= loopSize ? "success" : "info",
 				);
 				await setState("getCreator", 2, {
@@ -1658,7 +1658,7 @@ async function runGetCreator(step, data) {
 			} else {
 				console.log("[getCreator] New creator data did not load yet, retrying");
 				appendFloatingLog(
-					`No new creator after attempt ${attempts}/${maxAttempts}; retrying...`,
+					`試行 ${attempts}/${maxAttempts} 後に新しいクリエイターが見つかりません。再試行中...`,
 					"error",
 				);
 			}
@@ -1674,12 +1674,12 @@ async function runGetCreator(step, data) {
 				error: message,
 			});
 			setFloatingStatus(
-				"Get Creators",
-				`Stopped: collected ${users.length}/${loopSize}. Not saved.`,
+				"クリエイター取得",
+				`停止: ${users.length}/${loopSize} 件収集。保存されていません。`,
 				"error",
 			);
 			appendFloatingLog(
-				`Stopped: collected ${users.length}/${loopSize}. Not saved.`,
+				`停止: ${users.length}/${loopSize} 件収集。保存されていません。`,
 				"error",
 			);
 			return;
@@ -1690,7 +1690,7 @@ async function runGetCreator(step, data) {
 		console.log("[getCreator] Saved users:", users);
 		await clearState();
 		notify(
-			`✅ Get Creators completed. Saved ${users.length} users.`,
+			`✅ クリエイター取得完了。${users.length} 人を保存しました。`,
 			5000,
 			"success",
 		);
@@ -1711,19 +1711,19 @@ async function runInvite(step, data) {
 		const stored = await chrome.storage.local.get(["users"]);
 		const users = parseCsv(stored.users);
 		console.log("[invite] Users from extension storage:", users);
-		setFloatingStatus("Invite", `Starting... ${users.length} users`);
-		appendFloatingLog(`Invite started. users=${users.length}`);
+		setFloatingStatus("招待チェック", `開始... ${users.length} 人`);
+		appendFloatingLog(`招待チェックを開始しました。users=${users.length}`);
 
 		if (users.length === 0) {
 			await clearState();
-			notify("❌ No users found. Run Get Creators first.", 5000, "error");
+			notify("❌ ユーザーが見つかりません。先にクリエイター取得を実行してください。", 5000, "error");
 			return;
 		}
 
 		const nextData = { users, chats: [], inviteIndex: 0 };
 		await setState("invite", 2, nextData);
 		if (!url.includes("live-backstage.tiktok.com/portal")) {
-			appendFloatingLog("Opening LIVE Backstage relation page...");
+			appendFloatingLog("LIVE Backstageのリレーションページを開きます...");
 			navigate("https://live-backstage.tiktok.com/portal/anchor/relation");
 			return;
 		}
@@ -1741,8 +1741,8 @@ async function runInvite(step, data) {
 		}
 
 		setFloatingStatus(
-			"Invite",
-			`Preparing relation page... matched ${chats.length}/${users.length}`,
+			"招待チェック",
+			`リレーションページを準備中... 一致 ${chats.length}/${users.length}`,
 		);
 		window.scrollTo(0, 0);
 
@@ -1757,10 +1757,10 @@ async function runInvite(step, data) {
 			const user = users[i];
 			console.log(`[invite] Processing ${i + 1}/${users.length}: ${user}`);
 			setFloatingStatus(
-				"Invite",
-				`Checking ${i + 1}/${users.length}: @${user}`,
+				"招待チェック",
+				`確認中 ${i + 1}/${users.length}: @${user}`,
 			);
-			appendFloatingLog(`Checking ${i + 1}/${users.length}: @${user}`);
+			appendFloatingLog(`確認中 ${i + 1}/${users.length}: @${user}`);
 
 			// Focus textarea only after it is visible and enabled.
 			const inviteTextarea = await waitForElementReady(
@@ -1789,11 +1789,11 @@ async function runInvite(step, data) {
 				chats.push(user);
 				seenChats.add(user);
 				appendFloatingLog(
-					`Eligible saved for Send Message: @${user} (${status})`,
+					`メッセージ送信対象として保存: @${user} (${status})`,
 					"success",
 				);
 			} else {
-				appendFloatingLog(`Skipped: @${user} (${status})`);
+				appendFloatingLog(`スキップ: @${user} (${status})`);
 			}
 
 			// Go back to the textarea step using stable side-sheet controls.
@@ -1811,7 +1811,7 @@ async function runInvite(step, data) {
 		console.log("[invite] Saved chats:", chats);
 		await clearState();
 		notify(
-			`✅ Invite check completed. Matched ${chats.length}/${users.length}. Next: Send Message.`,
+			`✅ 招待チェック完了。${chats.length}/${users.length} 件一致しました。次: メッセージ送信`,
 			5000,
 			"success",
 		);
@@ -1838,17 +1838,17 @@ async function runSendMessage(step, data) {
 
 		console.log("[sendMessage] Chats to send:", chats);
 		setFloatingStatus(
-			"Send Message",
-			`Starting... ${chats.length} chats, ${sent.length} already sent`,
+			"メッセージ送信",
+			`開始... ${chats.length} 件、${sent.length} 件送信済み`,
 		);
 		appendFloatingLog(
-			`Send Message started. chats=${chats.length}, alreadySent=${sent.length}, testMode=${testMode ? "ON" : "OFF"}`,
+			`メッセージ送信を開始しました。chats=${chats.length}, alreadySent=${sent.length}, testMode=${testMode ? "ON" : "OFF"}`,
 		);
 
 		if (!msg.trim()) {
 			await clearState();
 			notify(
-				"❌ Message is empty. Open Config and set msg first.",
+				"❌ メッセージが空です。設定を開いてメッセージを入力してください。",
 				5000,
 				"error",
 			);
@@ -1858,7 +1858,7 @@ async function runSendMessage(step, data) {
 		if (chats.length === 0) {
 			await clearState();
 			notify(
-				"❌ No chats to send. Run Invite first or all chats are already sent.",
+				"❌ 送信するチャットがありません。招待チェックを先に実行するか、すべて送信済みです。",
 				5000,
 				"error",
 			);
@@ -1876,7 +1876,7 @@ async function runSendMessage(step, data) {
 		};
 		await setState("sendMessage", 2, nextData);
 		if (!url.includes("live-backstage.tiktok.com/portal")) {
-			appendFloatingLog("Opening LIVE Backstage messages page...");
+			appendFloatingLog("LIVE Backstageのメッセージページを開きます...");
 			navigate("https://live-backstage.tiktok.com/portal");
 			return;
 		}
@@ -1898,8 +1898,8 @@ async function runSendMessage(step, data) {
 		const testedThisRun = new Set(tested);
 
 		setFloatingStatus(
-			"Send Message",
-			`Preparing messages page... sent ${newsent.length}/${chats.length}`,
+			"メッセージ送信",
+			`メッセージページを準備中... 送信済み ${newsent.length}/${chats.length}`,
 		);
 		window.scrollTo(0, 0);
 
@@ -1912,18 +1912,18 @@ async function runSendMessage(step, data) {
 			const user = chats[i];
 			console.log(`[sendMessage] Processing ${i + 1}/${chats.length}: ${user}`);
 			setFloatingStatus(
-				"Send Message",
-				`Processing ${i + 1}/${chats.length}: @${user}`,
+				"メッセージ送信",
+				`処理中 ${i + 1}/${chats.length}: @${user}`,
 			);
-			appendFloatingLog(`Processing ${i + 1}/${chats.length}: @${user}`);
+			appendFloatingLog(`処理中 ${i + 1}/${chats.length}: @${user}`);
 
 			// Find and fill the instant-message username search input.
-			appendFloatingLog(`Waiting for search input for @${user}...`);
+			appendFloatingLog(`@${user} の検索入力を待機中...`);
 			const searchInput = await waitForInstantMessageSearchInput(15000);
 			clickElementLikeUser(searchInput);
 
 			// Type username and wait until the controlled input reflects it.
-			appendFloatingLog(`Typing search username: @${user}`);
+			appendFloatingLog(`検索ユーザー名を入力中: @${user}`);
 			setElementValue(searchInput, user);
 			await waitUntil(() => searchInput.value === user, {
 				timeout: 5000,
@@ -1933,14 +1933,14 @@ async function runSendMessage(step, data) {
 			// Do not depend on Semi's clear-button node; it is not always rendered.
 			// The required page node is the search input itself. Once its controlled
 			// value reflects the username, let React settle, then submit Enter.
-			appendFloatingLog("Search input value confirmed; submitting search...");
+			appendFloatingLog("検索入力値を確認しました。検索を送信中...");
 			await tick();
 
-			appendFloatingLog(`Submitting search for @${user}...`);
+			appendFloatingLog(`@${user} の検索を送信中...`);
 			sendEnterOnElement(searchInput);
 
 			// Wait until search results or configured block labels are visible.
-			appendFloatingLog(`Waiting for visible search results for @${user}...`);
+			appendFloatingLog(`@${user} の検索結果表示を待機中...`);
 			await waitUntil(
 				async () => {
 					const foundNow = getVisibleXPathCount(
@@ -1963,12 +1963,12 @@ async function runSendMessage(step, data) {
 
 			const ok = found === 1 && nottarget === 0;
 			appendFloatingLog(
-				`Search result @${user}: found=${found}, blocked=${nottarget}`,
+				`検索結果 @${user}: 発見=${found}, ブロック=${nottarget}`,
 			);
 
 			if (ok) {
 				// Click the first visible result.
-				appendFloatingLog(`Opening search result for @${user}...`);
+				appendFloatingLog(`@${user} の検索結果を開きます...`);
 				await clickXPath(
 					"//div[contains(@data-id,'backstage_search_result_item')]",
 					15000,
@@ -1976,7 +1976,7 @@ async function runSendMessage(step, data) {
 
 				// Wait until search results disappear and the chat textarea is ready.
 				// This confirms the contact's chat has opened, not the previous one.
-				appendFloatingLog(`Waiting for chat to open for @${user}...`);
+				appendFloatingLog(`@${user} のチャットオープンを待機中...`);
 				const messageTextarea = await waitUntil(
 					() => {
 						const resultsStillVisible = getVisibleXPathCount(
@@ -2002,7 +2002,7 @@ async function runSendMessage(step, data) {
 				// textarea is empty so we don't append to a stale draft.
 				await new Promise((r) => setTimeout(r, 2000));
 				if (messageTextarea.value && messageTextarea.value.trim()) {
-					appendFloatingLog("Clearing stale textarea before typing...");
+					appendFloatingLog("入力前に古いテキストエリアをクリア中...");
 					setElementValue(messageTextarea, "");
 					await new Promise((r) => setTimeout(r, 300));
 				}
@@ -2016,7 +2016,7 @@ async function runSendMessage(step, data) {
 
 				if (testMode) {
 					appendFloatingLog(
-						`TEST MODE: message filled for @${user}; not sent.`,
+						`テストモード: @${user} のメッセージ入力済み。送信は行いません。`,
 						"success",
 					);
 					if (!testedThisRun.has(user)) {
@@ -2024,8 +2024,8 @@ async function runSendMessage(step, data) {
 						testedThisRun.add(user);
 					}
 					setFloatingStatus(
-						"Send Message",
-						`Tested ${tested.length}/${chats.length}: @${user}`,
+						"メッセージ送信",
+						`テスト済み ${tested.length}/${chats.length}: @${user}`,
 						"success",
 					);
 					// Clear the textarea so the next test user starts from a clean chat.
@@ -2039,30 +2039,30 @@ async function runSendMessage(step, data) {
 							sentThisRun.add(user);
 						}
 						setFloatingStatus(
-							"Send Message",
-							`Sent ${newsent.length}/${chats.length}: @${user}`,
+							"メッセージ送信",
+							`送信確認済み ${newsent.length}/${chats.length}: @${user}`,
 							"success",
 						);
-						appendFloatingLog(`Sent confirmed: @${user}`, "success");
+						appendFloatingLog(`送信確認済み: @${user}`, "success");
 
 						// Let the browser finish the network request before moving on.
-						appendFloatingLog("Settling before next user...");
+						appendFloatingLog("次のユーザー前に待機中...");
 						await new Promise((r) => setTimeout(r, 2000));
 					} catch (err) {
 						appendFloatingLog(
-							`Send not confirmed for @${user}: ${err?.message || err}`,
+							`送信未確認 @${user}: ${err?.message || err}`,
 							"error",
 						);
 						setFloatingStatus(
-							"Send Message",
-							`Send not confirmed: @${user}`,
+							"メッセージ送信",
+							`送信未確認: @${user}`,
 							"error",
 						);
 					}
 				}
 			} else {
 				console.log(`[sendMessage] Skipped ${user} (not a valid target)`);
-				appendFloatingLog(`Skipped: @${user} (not a valid target)`);
+				appendFloatingLog(`スキップ: @${user} (有効な対象ではありません)`);
 			}
 
 			if (!(await isTaskActive("sendMessage"))) return;
@@ -2083,13 +2083,13 @@ async function runSendMessage(step, data) {
 			console.log("[sendMessage] Saved sent to local config:", newsent);
 		}
 		// Extra wait for the last message to fully sync before ending.
-		appendFloatingLog("Final settling before completion...");
+		appendFloatingLog("完了前の最終待機中...");
 		await new Promise((r) => setTimeout(r, 4000));
 		await clearState();
 		notify(
 			testMode
-				? `✅ Send Message test completed. Tested ${tested.length}/${chats.length}. Nothing sent.`
-				: `✅ Send Message completed. Sent ${newsent.length}/${chats.length}.`,
+				? `✅ メッセージ送信テスト完了。${tested.length}/${chats.length} 件をテストしました。送信は行われていません。`
+				: `✅ メッセージ送信完了。${newsent.length}/${chats.length} 件送信しました。`,
 			5000,
 			"success",
 		);
@@ -2131,7 +2131,7 @@ async function resolveEngine() {
 			} catch (err) {
 				console.error("[TikTok Auto] Message action error:", err);
 				notify(
-					`❌ ${request.action} failed: ${err?.message || err}`,
+					`❌ ${request.action} 失敗: ${err?.message || err}`,
 					5000,
 					"error",
 				);
@@ -2176,6 +2176,6 @@ async function resolveEngine() {
 		}
 	} catch (err) {
 		console.error("[TikTok Auto] Resume error:", err);
-		notify(`❌ Task failed: ${err?.message || err}`, 5000, "error");
+		notify(`❌ タスク失敗: ${err?.message || err}`, 5000, "error");
 	}
 })();

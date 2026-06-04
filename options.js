@@ -69,7 +69,7 @@ async function saveConfig() {
 	});
 	loopSizeInput.value = String(loopSize);
 	sentInput.value = normalizeCsv(sentInput.value);
-	setStatus("Saved");
+	setStatus("保存しました");
 }
 
 form.addEventListener("submit", async (event) => {
@@ -78,16 +78,16 @@ form.addEventListener("submit", async (event) => {
 		await saveConfig();
 	} catch (err) {
 		console.error(err);
-		setStatus(err?.message || "Save failed", true);
+		setStatus(err?.message || "保存に失敗しました", true);
 	}
 });
 
 reloadBtn.addEventListener("click", async () => {
 	await loadConfig();
-	setStatus("Reloaded");
+	setStatus("再読み込みしました");
 });
 
 loadConfig().catch((err) => {
 	console.error(err);
-	setStatus(err?.message || "Load failed", true);
+	setStatus(err?.message || "読み込みに失敗しました", true);
 });
