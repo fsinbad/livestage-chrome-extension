@@ -1104,7 +1104,7 @@ async function runAgentGetCreator(step, data) {
 			try {
 				await executeAgentStep(
 					agent,
-					"Wait for the page to fully load, then read the current live stream creator username displayed on the main feed. Do not click anything.",
+					"Read the current creator username from the page.",
 					20000,
 				);
 				await tick();
@@ -1131,7 +1131,7 @@ async function runAgentGetCreator(step, data) {
 			try {
 				await executeAgentStep(
 					agent,
-					"Click the small circular down arrow button on the right side of the video player. It is a white/light colored circular button with a down arrow inside, located near the middle-right edge of the screen, next to the video feed. This button switches to the next live stream creator.",
+					"Click the down arrow on the right side to go to the next creator.",
 					20000,
 				);
 			} catch (err) {
