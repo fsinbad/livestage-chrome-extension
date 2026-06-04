@@ -1,7 +1,5 @@
 # TikTok Live Automation — Chrome Extension
 
-Converted from `tiktok(5).side` (Selenium IDE).
-
 ## Files
 
 | File | Purpose |
