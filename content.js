@@ -1001,22 +1001,35 @@ async function createPageAgentInstance() {
 }
 
 async function executeAgentStep(agent, instruction, timeout = 60000) {
-	appendFloatingLog(`[Agent] ${instruction}`);
+	appendFloatingLog(`[Agent] → ${instruction}`);
 	const start = Date.now();
-	const result = await Promise.race([
-		agent.execute(instruction),
-		new Promise((_, reject) =>
-			setTimeout(
-				() =>
-					reject(
-						new Error(`Agent step timeout after ${timeout}ms: ${instruction}`),
-					),
-				timeout,
+	try {
+		const result = await Promise.race([
+			agent.execute(instruction),
+			new Promise((_, reject) =>
+				setTimeout(
+					() =>
+						reject(
+							new Error(
+								`Agent step timeout after ${timeout}ms: ${instruction}`,
+							),
+						),
+					timeout,
+				),
 			),
-		),
-	]);
-	appendFloatingLog(`[Agent] Done (${Date.now() - start}ms)`);
-	return result;
+		]);
+		appendFloatingLog(
+			`[Agent] ✓ Done (${Date.now() - start}ms)`,
+			"success",
+		);
+		return result;
+	} catch (err) {
+		appendFloatingLog(
+			`[Agent] ✗ Failed (${Date.now() - start}ms): ${err?.message || err}`,
+			"error",
+		);
+		throw err;
+	}
 }
 
 // ---------- Agent Task: getCreator ----------
@@ -1165,6 +1178,7 @@ async function runAgentInvite(step, data) {
 		appendFloatingLog(`Engine: ${engine}`);
 		const stored = await chrome.storage.local.get(["users"]);
 		const users = parseCsv(stored.users);
+		setFloatingStatus("Invite [Agent]", `Starting... ${users.length} users`);
 		appendFloatingLog(`[Agent] Invite started. users=${users.length}`);
 		if (users.length === 0) {
 			await clearState();
@@ -1292,6 +1306,10 @@ async function runAgentSendMessage(step, data) {
 		const stored = await chrome.storage.local.get(["chats"]);
 		const chats = parseCsv(stored.chats).filter((item) => !sent.includes(item));
 
+		setFloatingStatus(
+			"Send Message [Agent]",
+			`Starting... ${chats.length} chats, ${sent.length} already sent`,
+		);
 		appendFloatingLog(
 			`[Agent] Send Message started. chats=${chats.length}, alreadySent=${sent.length}, testMode=${testMode ? "ON" : "OFF"}`,
 		);
