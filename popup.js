@@ -75,7 +75,12 @@ async function launchTask(taskName) {
 	await chrome.storage.local.remove(["tkTask", "tkStep", "tkData"]);
 
 	// Set fresh initial state. Content script step 0 will load local config data.
-	await chrome.storage.local.set({ tkTask: taskName, tkStep: 0, tkData: {}, tkEngine: engine });
+	await chrome.storage.local.set({
+		tkTask: taskName,
+		tkStep: 0,
+		tkData: {},
+		tkEngine: engine,
+	});
 
 	const startUrl = getTaskStartUrl(taskName);
 

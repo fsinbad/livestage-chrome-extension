@@ -1025,6 +1025,8 @@ async function runAgentGetCreator(step, data) {
 	const url = location.href;
 
 	if (step === 0) {
+		const engine = await resolveEngine();
+		appendFloatingLog(`Engine: ${engine}`);
 		const config = await loadLocalConfig();
 		const loopSize = parseInt(config.loopSize || "10", 10);
 		setFloatingStatus(
@@ -1075,9 +1077,7 @@ async function runAgentGetCreator(step, data) {
 			if (first && !seenUsers.has(first)) {
 				users.push(first);
 				seenUsers.add(first);
-				appendFloatingLog(
-					`Collected ${users.length}/${loopSize}: @${first}`,
-				);
+				appendFloatingLog(`Collected ${users.length}/${loopSize}: @${first}`);
 			}
 		}
 
@@ -1161,6 +1161,8 @@ async function runAgentInvite(step, data) {
 	const url = location.href;
 
 	if (step === 0) {
+		const engine = await resolveEngine();
+		appendFloatingLog(`Engine: ${engine}`);
 		const stored = await chrome.storage.local.get(["users"]);
 		const users = parseCsv(stored.users);
 		appendFloatingLog(`[Agent] Invite started. users=${users.length}`);
@@ -1239,10 +1241,7 @@ async function runAgentInvite(step, data) {
 			if ((await isInviteEligible(status, user)) && !seenChats.has(user)) {
 				chats.push(user);
 				seenChats.add(user);
-				appendFloatingLog(
-					`Eligible saved: @${user} (${status})`,
-					"success",
-				);
+				appendFloatingLog(`Eligible saved: @${user} (${status})`, "success");
 			} else {
 				appendFloatingLog(`Skipped: @${user} (${status})`);
 			}
@@ -1284,6 +1283,8 @@ async function runAgentSendMessage(step, data) {
 	const url = location.href;
 
 	if (step === 0) {
+		const engine = await resolveEngine();
+		appendFloatingLog(`Engine: ${engine}`);
 		const config = await loadLocalConfig();
 		const msg = String(config.msg || "");
 		const sent = parseCsv(config.sent);
@@ -1302,11 +1303,7 @@ async function runAgentSendMessage(step, data) {
 		}
 		if (chats.length === 0) {
 			await clearState();
-			notify(
-				"❌ No chats to send. Run Invite first.",
-				5000,
-				"error",
-			);
+			notify("❌ No chats to send. Run Invite first.", 5000, "error");
 			return;
 		}
 
@@ -1468,7 +1465,7 @@ async function runAgentSendMessage(step, data) {
 				try {
 					await executeAgentStep(
 						agent,
-						'Click the send button next to the message textarea to send the message.',
+						"Click the send button next to the message textarea to send the message.",
 						15000,
 					);
 				} catch (err) {
@@ -1498,13 +1495,10 @@ async function runAgentSendMessage(step, data) {
 
 				// Verify via DOM
 				try {
-					await waitUntil(
-						() => countVisibleChatMessagesContaining(msg) > 0,
-						{
-							timeout: 12000,
-							message: "message visible in chat panel",
-						},
-					);
+					await waitUntil(() => countVisibleChatMessagesContaining(msg) > 0, {
+						timeout: 12000,
+						message: "message visible in chat panel",
+					});
 					if (!sentThisRun.has(user)) {
 						newsent.push(user);
 						sentThisRun.add(user);
@@ -1556,6 +1550,8 @@ async function runGetCreator(step, data) {
 	const url = location.href;
 
 	if (step === 0) {
+		const engine = await resolveEngine();
+		appendFloatingLog(`Engine: ${engine}`);
 		const config = await loadLocalConfig();
 		const loopSize = parseInt(config.loopSize || "10", 10);
 		const nextData = { loopSize, loopIndex: 0, users: [] };
@@ -1703,6 +1699,8 @@ async function runInvite(step, data) {
 	const url = location.href;
 
 	if (step === 0) {
+		const engine = await resolveEngine();
+		appendFloatingLog(`Engine: ${engine}`);
 		const stored = await chrome.storage.local.get(["users"]);
 		const users = parseCsv(stored.users);
 		console.log("[invite] Users from extension storage:", users);
@@ -1822,6 +1820,8 @@ async function runSendMessage(step, data) {
 	const url = location.href;
 
 	if (step === 0) {
+		const engine = await resolveEngine();
+		appendFloatingLog(`Engine: ${engine}`);
 		const config = await loadLocalConfig();
 		const msg = String(config.msg || "");
 		const sent = parseCsv(config.sent);
