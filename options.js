@@ -2,11 +2,9 @@ const DEFAULT_CONFIG = globalThis.TK_DEFAULT_CONFIG;
 
 const form = document.getElementById("configForm");
 const engineInput = document.getElementById("engine");
-const llmProviderInput = document.getElementById("llmProvider");
 const llmModelInput = document.getElementById("llmModel");
 const llmBaseURLInput = document.getElementById("llmBaseURL");
 const llmApiKeyInput = document.getElementById("llmApiKey");
-const llmLanguageInput = document.getElementById("llmLanguage");
 const loopSizeInput = document.getElementById("loopSize");
 const msgInput = document.getElementById("msg");
 const sentInput = document.getElementById("sent");
@@ -41,11 +39,9 @@ async function loadConfig() {
 		msg: String(config.msg || "").trim() ? config.msg : DEFAULT_CONFIG.msg,
 	};
 	engineInput.value = merged.engine || "dom";
-	llmProviderInput.value = merged.llmProvider || "tongyi";
 	llmModelInput.value = merged.llmModel || "";
 	llmBaseURLInput.value = merged.llmBaseURL || "";
 	llmApiKeyInput.value = merged.llmApiKey || "";
-	llmLanguageInput.value = merged.llmLanguage || "ja-JP";
 	loopSizeInput.value = merged.loopSize;
 	msgInput.value = merged.msg;
 	sentInput.value = merged.sent;
@@ -57,11 +53,9 @@ async function saveConfig() {
 	const loopSize = Math.max(1, parseInt(loopSizeInput.value || "10", 10));
 	await chrome.storage.local.set({
 		engine: engineInput.value || "dom",
-		llmProvider: llmProviderInput.value || "tongyi",
 		llmModel: llmModelInput.value || "",
 		llmBaseURL: llmBaseURLInput.value || "",
 		llmApiKey: llmApiKeyInput.value || "",
-		llmLanguage: llmLanguageInput.value || "ja-JP",
 		loopSize: String(loopSize),
 		msg: msgInput.value || "",
 		sent: normalizeCsv(sentInput.value),

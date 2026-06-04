@@ -164,24 +164,15 @@
           </div>
 
           <div class="field">
-            <label for="llmProvider">LLM プロバイダー</label>
-            <select id="llmProvider" name="llmProvider">
-              <option value="openai">OpenAI</option>
-              <option value="claude">Claude (Anthropic)</option>
-              <option value="deepseek">DeepSeek</option>
-            </select>
-          </div>
-
-          <div class="field">
             <label for="llmModel">モデル</label>
             <input
               id="llmModel"
               name="llmModel"
               type="text"
-              placeholder="deepseek-v4-flash"
+              placeholder="gpt-4o"
             />
             <div class="help">
-              空欄の場合、プロバイダーのデフォルトモデルを使用します。
+              OpenAI 互換 API で使用するモデル名。
             </div>
           </div>
 
@@ -191,10 +182,10 @@
               id="llmBaseURL"
               name="llmBaseURL"
               type="text"
-              placeholder="https://api.deepseek.com"
+              placeholder="https://api.openai.com/v1"
             />
             <div class="help">
-              空欄の場合、プロバイダーのデフォルトURLを使用します。
+              OpenAI 互換 API のベース URL（例: https://api.openai.com/v1）。
             </div>
           </div>
 
@@ -208,19 +199,6 @@
             />
             <div class="help">
               LLM の API Key。chrome.storage にローカル保存されます。
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="llmLanguage">言語</label>
-            <input
-              id="llmLanguage"
-              name="llmLanguage"
-              type="text"
-              placeholder="ja-JP"
-            />
-            <div class="help">
-              PageAgent の言語設定（例: ja-JP, en-US, zh-CN）。
             </div>
           </div>
 

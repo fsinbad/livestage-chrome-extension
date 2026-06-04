@@ -946,25 +946,6 @@ function notify(text, _duration = 5000, kind = "info") {
 // PageAgent Integration — Agent Engine
 // =================================================================================
 
-const PROVIDER_DEFAULTS = {
-	tongyi: {
-		model: "qwen3.5-plus",
-		baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-	},
-	openai: {
-		model: "gpt-4",
-		baseURL: "https://api.openai.com/v1",
-	},
-	claude: {
-		model: "claude-3-sonnet-20240229",
-		baseURL: "https://api.anthropic.com/v1",
-	},
-	deepseek: {
-		model: "deepseek-chat",
-		baseURL: "https://api.deepseek.com/v1",
-	},
-};
-
 function ensurePageAgentLoaded() {
 	if (!globalThis.PageAgent) {
 		throw new Error(
@@ -1020,14 +1001,10 @@ function installLlmFetchProxy() {
 
 async function createPageAgentInstance() {
 	const config = await chrome.storage.local.get([
-		"llmProvider",
 		"llmModel",
 		"llmBaseURL",
 		"llmApiKey",
-		"llmLanguage",
 	]);
-	const defaults =
-		PROVIDER_DEFAULTS[config.llmProvider] || PROVIDER_DEFAULTS.tongyi;
 
 	const apiKey = config.llmApiKey;
 	if (!apiKey) {
@@ -1036,17 +1013,17 @@ async function createPageAgentInstance() {
 		);
 	}
 
+	const model = config.llmModel || "gpt-4o";
+	let baseURL = config.llmBaseURL || "https://api.openai.com/v1";
 	// Normalize baseURL to avoid double slashes like https://host/path//chat/completions
-	let baseURL = config.llmBaseURL || defaults.baseURL;
 	baseURL = baseURL.replace(/\/+$/, "");
 
 	installLlmFetchProxy();
 
 	return new globalThis.PageAgent({
-		model: config.llmModel || defaults.model,
+		model,
 		baseURL,
 		apiKey,
-		language: config.llmLanguage || "ja-JP",
 	});
 }
 
@@ -1154,7 +1131,7 @@ async function runAgentGetCreator(step, data) {
 			try {
 				await executeAgentStep(
 					agent,
-					"Click the next/right arrow button on the right side to go to the next live stream. The button is usually a small circular arrow icon on the right edge of the video player.",
+					"Press the Down Arrow key on the keyboard to navigate to the next recommended live stream creator on the main feed.",
 					20000,
 				);
 			} catch (err) {
