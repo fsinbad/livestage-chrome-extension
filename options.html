@@ -156,6 +156,50 @@
 
         <form id="configForm">
           <div class="field">
+            <label for="engine">Execution Engine / 実行エンジン</label>
+            <select id="engine" name="engine">
+              <option value="dom">DOM (确定性操作)</option>
+              <option value="agent">Agent (AI 自然语言驱动)</option>
+            </select>
+            <div class="help">
+              DOM: 精确 selector 操作（快、免费）。Agent: PageAgent + LLM 自然语言驱动（慢、消耗 token，但不怕 DOM 改版）。
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="llmProvider">LLM Provider / プロバイダー</label>
+            <select id="llmProvider" name="llmProvider">
+              <option value="tongyi">通义千问 (阿里云)</option>
+              <option value="openai">OpenAI</option>
+              <option value="claude">Claude (Anthropic)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="llmModel">Model / モデル</label>
+            <input id="llmModel" name="llmModel" type="text" placeholder="qwen3.5-plus" />
+            <div class="help">Leave empty to use provider default.</div>
+          </div>
+
+          <div class="field">
+            <label for="llmBaseURL">Base URL</label>
+            <input id="llmBaseURL" name="llmBaseURL" type="text" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+            <div class="help">Leave empty to use provider default.</div>
+          </div>
+
+          <div class="field">
+            <label for="llmApiKey">API Key</label>
+            <input id="llmApiKey" name="llmApiKey" type="password" placeholder="sk-..." />
+            <div class="help">Your LLM API key. Stored locally in chrome.storage.</div>
+          </div>
+
+          <div class="field">
+            <label for="llmLanguage">Language / 言語</label>
+            <input id="llmLanguage" name="llmLanguage" type="text" placeholder="ja-JP" />
+            <div class="help">PageAgent language setting (e.g. ja-JP, en-US, zh-CN).</div>
+          </div>
+
+          <div class="field">
             <label for="loopSize">loopSize / 送信先人数</label>
             <input
               id="loopSize"

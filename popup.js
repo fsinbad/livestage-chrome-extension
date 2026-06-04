@@ -5,6 +5,7 @@
 const taskButtons = Array.from(document.querySelectorAll(".task-button"));
 const stopButton = document.getElementById("btnStop");
 const configButton = document.getElementById("btnConfig");
+const engineSelect = document.getElementById("engineSelect");
 const statusEl = document.getElementById("status");
 
 const taskLabels = {
@@ -67,13 +68,14 @@ async function launchTask(taskName) {
 	const current = await chrome.storage.local.get(["tkTask"]);
 	if (current.tkTask) return;
 
+	const engine = engineSelect.value || "dom";
 	setUiState({ task: taskName, step: 0 });
 
 	// Clear any stale task state while keeping data keys like users/chats.
 	await chrome.storage.local.remove(["tkTask", "tkStep", "tkData"]);
 
 	// Set fresh initial state. Content script step 0 will load local config data.
-	await chrome.storage.local.set({ tkTask: taskName, tkStep: 0, tkData: {} });
+	await chrome.storage.local.set({ tkTask: taskName, tkStep: 0, tkData: {}, tkEngine: engine });
 
 	const startUrl = getTaskStartUrl(taskName);
 
@@ -123,7 +125,15 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 	});
 });
 
-// Show current running task on open
-chrome.storage.local.get(["tkTask", "tkStep"], (res) => {
+// Load saved engine preference and current task on open
+chrome.storage.local.get(["engine", "tkTask", "tkStep"], (res) => {
+	if (engineSelect && res.engine) engineSelect.value = res.engine;
 	setUiState({ task: res.tkTask || null, step: res.tkStep ?? 0 });
 });
+
+// Persist engine selection
+if (engineSelect) {
+	engineSelect.addEventListener("change", async () => {
+		await chrome.storage.local.set({ engine: engineSelect.value });
+	});
+}

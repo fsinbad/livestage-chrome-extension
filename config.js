@@ -32,4 +32,12 @@ globalThis.TK_DEFAULT_CONFIG = {
 	msg: globalThis.TK_DEFAULT_MSG,
 	sent: "",
 	testMode: false,
+	// Engine selection: "dom" | "agent"
+	engine: "dom",
+	// LLM config for PageAgent agent engine
+	llmProvider: "tongyi",
+	llmModel: "",
+	llmBaseURL: "",
+	llmApiKey: "",
+	llmLanguage: "ja-JP",
 };

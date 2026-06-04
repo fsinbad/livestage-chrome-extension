@@ -940,7 +940,616 @@ function notify(text, _duration = 5000, kind = "info") {
 }
 
 // =================================================================================
-// Task: getCreator
+// PageAgent Integration — Agent Engine
+// =================================================================================
+
+const PAGE_AGENT_CDN =
+	"https://cdn.jsdelivr.net/npm/page-agent@1.8.2/dist/iife/page-agent.js";
+
+const PROVIDER_DEFAULTS = {
+	tongyi: {
+		model: "qwen3.5-plus",
+		baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+	},
+	openai: {
+		model: "gpt-4",
+		baseURL: "https://api.openai.com/v1",
+	},
+	claude: {
+		model: "claude-3-sonnet-20240229",
+		baseURL: "https://api.anthropic.com/v1",
+	},
+};
+
+async function loadPageAgentScript() {
+	if (globalThis.PageAgent) return;
+	return new Promise((resolve, reject) => {
+		const script = document.createElement("script");
+		script.src = PAGE_AGENT_CDN;
+		script.crossOrigin = "anonymous";
+		script.onload = () => resolve();
+		script.onerror = () =>
+			reject(new Error("Failed to load PageAgent from CDN"));
+		document.head.appendChild(script);
+	});
+}
+
+async function createPageAgentInstance() {
+	const config = await chrome.storage.local.get([
+		"llmProvider",
+		"llmModel",
+		"llmBaseURL",
+		"llmApiKey",
+		"llmLanguage",
+	]);
+	const defaults =
+		PROVIDER_DEFAULTS[config.llmProvider] || PROVIDER_DEFAULTS.tongyi;
+
+	const apiKey = config.llmApiKey;
+	if (!apiKey) {
+		throw new Error(
+			"LLM API Key is not configured. Open Config page and set it.",
+		);
+	}
+
+	return new globalThis.PageAgent({
+		model: config.llmModel || defaults.model,
+		baseURL: config.llmBaseURL || defaults.baseURL,
+		apiKey,
+		language: config.llmLanguage || "ja-JP",
+	});
+}
+
+async function executeAgentStep(agent, instruction, timeout = 60000) {
+	appendFloatingLog(`[Agent] ${instruction}`);
+	const start = Date.now();
+	const result = await Promise.race([
+		agent.execute(instruction),
+		new Promise((_, reject) =>
+			setTimeout(
+				() =>
+					reject(
+						new Error(`Agent step timeout after ${timeout}ms: ${instruction}`),
+					),
+				timeout,
+			),
+		),
+	]);
+	appendFloatingLog(`[Agent] Done (${Date.now() - start}ms)`);
+	return result;
+}
+
+// ---------- Agent Task: getCreator ----------
+
+async function runAgentGetCreator(step, data) {
+	const url = location.href;
+
+	if (step === 0) {
+		const config = await loadLocalConfig();
+		const loopSize = parseInt(config.loopSize || "10", 10);
+		setFloatingStatus(
+			"Get Creators [Agent]",
+			`Starting... target ${loopSize} users`,
+		);
+		appendFloatingLog(`[Agent] Get Creators started. target=${loopSize}`);
+		await setState("getCreator", 2, {
+			loopSize,
+			loopIndex: 0,
+			users: [],
+		});
+		if (!url.includes("tiktok.com/live")) {
+			appendFloatingLog("[Agent] Navigating to TikTok LIVE feed...");
+			navigate("https://www.tiktok.com/live?lang=ja-JP");
+			return;
+		}
+		return runAgentGetCreator(2, {
+			loopSize,
+			loopIndex: 0,
+			users: [],
+		});
+	}
+
+	if (step === 2 && url.includes("tiktok.com/live")) {
+		let { loopSize, users = [] } = data;
+		users = users ? [...users] : [];
+		const seenUsers = new Set(users);
+
+		await loadPageAgentScript();
+		const agent = await createPageAgentInstance();
+
+		// Initial creator
+		if (users.length === 0) {
+			if (!(await isTaskActive("getCreator"))) return;
+			try {
+				await executeAgentStep(
+					agent,
+					"Wait for the page to fully load, then read the current live stream creator username displayed on the main feed. Do not click anything.",
+					20000,
+				);
+				await tick();
+				await new Promise((r) => setTimeout(r, 1500));
+			} catch (_err) {
+				// Ignore; we will read via DOM fallback
+			}
+			const first = getCurrentCreatorUsername();
+			if (first && !seenUsers.has(first)) {
+				users.push(first);
+				seenUsers.add(first);
+				appendFloatingLog(
+					`Collected ${users.length}/${loopSize}: @${first}`,
+				);
+			}
+		}
+
+		let attempts = 0;
+		const maxAttempts = Math.max(loopSize * 6, 12);
+
+		while (users.length < loopSize && attempts < maxAttempts) {
+			if (!(await isTaskActive("getCreator"))) return;
+			attempts++;
+
+			const previous = getCurrentCreatorUsername();
+			try {
+				await executeAgentStep(
+					agent,
+					"Click the next/right arrow button on the right side to go to the next live stream. The button is usually a small circular arrow icon on the right edge of the video player.",
+					20000,
+				);
+			} catch (err) {
+				appendFloatingLog(
+					`[Agent] Next button click failed: ${err?.message || err}`,
+					"error",
+				);
+				// Fallback scroll
+				scrollToNextCreatorCard(previous, seenUsers);
+			}
+
+			await tick();
+			await new Promise((r) => setTimeout(r, 2500));
+
+			const nextUser = await waitForNewCreatorUsername(
+				previous,
+				seenUsers,
+				12000,
+			).catch(() => "");
+
+			if (nextUser) {
+				users.push(nextUser);
+				seenUsers.add(nextUser);
+				appendFloatingLog(
+					`Collected ${users.length}/${loopSize}: @${nextUser}`,
+				);
+				await setState("getCreator", 2, {
+					loopSize,
+					loopIndex: users.length,
+					users,
+				});
+			} else {
+				appendFloatingLog(
+					`No new creator after attempt ${attempts}/${maxAttempts}`,
+					"error",
+				);
+			}
+		}
+
+		if (users.length < loopSize) {
+			const msg = `[Agent getCreator] Expected ${loopSize}, collected ${users.length}. Not saving partial.`;
+			appendFloatingLog(msg, "error");
+			await setState("getCreator", 2, {
+				loopSize,
+				loopIndex: users.length,
+				users,
+				error: msg,
+			});
+			return;
+		}
+
+		if (!(await isTaskActive("getCreator"))) return;
+		await chrome.storage.local.set({ users: csvDistinct(users) });
+		await clearState();
+		notify(
+			`✅ Agent Get Creators completed. Saved ${users.length} users.`,
+			5000,
+			"success",
+		);
+	}
+}
+
+// ---------- Agent Task: invite ----------
+
+async function runAgentInvite(step, data) {
+	const url = location.href;
+
+	if (step === 0) {
+		const stored = await chrome.storage.local.get(["users"]);
+		const users = parseCsv(stored.users);
+		appendFloatingLog(`[Agent] Invite started. users=${users.length}`);
+		if (users.length === 0) {
+			await clearState();
+			notify("❌ No users found. Run Get Creators first.", 5000, "error");
+			return;
+		}
+		const nextData = { users, chats: [], inviteIndex: 0 };
+		await setState("invite", 2, nextData);
+		if (!url.includes("live-backstage.tiktok.com/portal")) {
+			navigate("https://live-backstage.tiktok.com/portal/anchor/relation");
+			return;
+		}
+		return runAgentInvite(2, nextData);
+	}
+
+	if (step === 2 && url.includes("live-backstage.tiktok.com/portal")) {
+		let { users, chats, inviteIndex = 0 } = data;
+		chats = chats ? [...chats] : [];
+		const seenChats = new Set(chats);
+
+		if (!url.includes("/portal/anchor/relation")) {
+			const ready = await openRelationPage();
+			if (!ready) return;
+		}
+
+		await loadPageAgentScript();
+		const agent = await createPageAgentInstance();
+
+		await ensureInviteSideSheetOpen();
+
+		for (let i = inviteIndex; i < users.length; i++) {
+			if (!(await isTaskActive("invite"))) return;
+			const user = users[i];
+			appendFloatingLog(`[Agent] Checking ${i + 1}/${users.length}: @${user}`);
+
+			// Type username via Agent (or DOM fallback)
+			const textarea = await waitForElementReady(
+				getInviteTextareaSelector(),
+				15000,
+			);
+			clickElementLikeUser(textarea);
+			setElementValue(textarea, user);
+			await waitUntil(() => textarea.value === user, {
+				timeout: 3000,
+				message: "invite textarea value",
+			});
+
+			// Click next via Agent
+			try {
+				await executeAgentStep(
+					agent,
+					'Click the "Next" button in the invite side sheet. It is usually a blue button at the bottom right of the invite panel.',
+					15000,
+				);
+			} catch (err) {
+				appendFloatingLog(
+					`[Agent] Next button failed: ${err?.message || err}`,
+					"error",
+				);
+				const nextBtn = await waitForInviteNextButton(10000);
+				if (nextBtn) clickElementLikeUser(nextBtn);
+			}
+
+			await tick();
+			await new Promise((r) => setTimeout(r, 2000));
+
+			// Read status via DOM
+			const result = await waitForInviteCandidateResult(user, 12000).catch(
+				() => ({ status: "" }),
+			);
+			const status = result.status;
+			appendFloatingLog(`[Agent] ${user} => ${status}`);
+
+			if ((await isInviteEligible(status, user)) && !seenChats.has(user)) {
+				chats.push(user);
+				seenChats.add(user);
+				appendFloatingLog(
+					`Eligible saved: @${user} (${status})`,
+					"success",
+				);
+			} else {
+				appendFloatingLog(`Skipped: @${user} (${status})`);
+			}
+
+			// Go back
+			try {
+				await executeAgentStep(
+					agent,
+					'Click the "Back" button in the invite side sheet to return to the username input step.',
+					15000,
+				);
+			} catch (err) {
+				appendFloatingLog(
+					`[Agent] Back button failed: ${err?.message || err}`,
+					"error",
+				);
+				const backBtn = await waitForInviteBackButton(10000);
+				if (backBtn) clickElementLikeUser(backBtn);
+			}
+			await waitForElementReady(getInviteTextareaSelector(), 15000);
+
+			await setState("invite", 2, { users, chats, inviteIndex: i + 1 });
+		}
+
+		if (!(await isTaskActive("invite"))) return;
+		await chrome.storage.local.set({ chats: csvDistinct(chats) });
+		await clearState();
+		notify(
+			`✅ Agent Invite completed. Matched ${chats.length}/${users.length}.`,
+			5000,
+			"success",
+		);
+	}
+}
+
+// ---------- Agent Task: sendMessage ----------
+
+async function runAgentSendMessage(step, data) {
+	const url = location.href;
+
+	if (step === 0) {
+		const config = await loadLocalConfig();
+		const msg = String(config.msg || "");
+		const sent = parseCsv(config.sent);
+		const testMode = config.testMode === true || config.testMode === "true";
+		const stored = await chrome.storage.local.get(["chats"]);
+		const chats = parseCsv(stored.chats).filter((item) => !sent.includes(item));
+
+		appendFloatingLog(
+			`[Agent] Send Message started. chats=${chats.length}, alreadySent=${sent.length}, testMode=${testMode ? "ON" : "OFF"}`,
+		);
+
+		if (!msg.trim()) {
+			await clearState();
+			notify("❌ Message is empty. Set msg in Config first.", 5000, "error");
+			return;
+		}
+		if (chats.length === 0) {
+			await clearState();
+			notify(
+				"❌ No chats to send. Run Invite first.",
+				5000,
+				"error",
+			);
+			return;
+		}
+
+		const nextData = {
+			msg,
+			chats,
+			sent,
+			newsent: [],
+			tested: [],
+			testMode,
+			messageIndex: 0,
+		};
+		await setState("sendMessage", 2, nextData);
+		if (!url.includes("live-backstage.tiktok.com/portal")) {
+			navigate("https://live-backstage.tiktok.com/portal");
+			return;
+		}
+		return runAgentSendMessage(2, nextData);
+	}
+
+	if (step === 2 && url.includes("live-backstage.tiktok.com/portal")) {
+		let {
+			msg,
+			chats,
+			newsent,
+			tested,
+			testMode = false,
+			messageIndex = 0,
+		} = data;
+		newsent = newsent ? [...newsent] : [];
+		tested = tested ? [...tested] : [];
+		const sentThisRun = new Set(newsent);
+		const testedThisRun = new Set(tested);
+
+		await loadPageAgentScript();
+		const agent = await createPageAgentInstance();
+
+		await openInstantMessagesPage();
+
+		for (let i = messageIndex; i < chats.length; i++) {
+			if (!(await isTaskActive("sendMessage"))) return;
+			const user = chats[i];
+			appendFloatingLog(
+				`[Agent] Processing ${i + 1}/${chats.length}: @${user}`,
+			);
+
+			// Search input via Agent + DOM fallback
+			const searchInput = await waitForInstantMessageSearchInput(15000);
+			clickElementLikeUser(searchInput);
+			setElementValue(searchInput, user);
+			await waitUntil(() => searchInput.value === user, {
+				timeout: 5000,
+				message: "search input value",
+			});
+			await tick();
+			appendFloatingLog(`[Agent] Submitting search for @${user}...`);
+			sendEnterOnElement(searchInput);
+
+			// Wait results
+			appendFloatingLog(`[Agent] Waiting for search results...`);
+			await waitUntil(
+				async () => {
+					const foundNow = getVisibleXPathCount(
+						"//div[contains(@data-id,'backstage_search_result_item')]",
+					);
+					const blockedNow = await countConfiguredBlockedSearchResults();
+					return foundNow > 0 || blockedNow > 0;
+				},
+				{ timeout: 15000, message: "visible search results" },
+			).catch(() => null);
+
+			const found = getVisibleXPathCount(
+				"//div[contains(@data-id,'backstage_search_result_item')]",
+			);
+			const nottarget = await countConfiguredBlockedSearchResults();
+			const ok = found === 1 && nottarget === 0;
+			appendFloatingLog(
+				`Search result @${user}: found=${found}, blocked=${nottarget}`,
+			);
+
+			if (!ok) {
+				appendFloatingLog(`Skipped: @${user} (not a valid target)`);
+				await setState("sendMessage", 2, {
+					msg,
+					chats,
+					newsent,
+					tested,
+					testMode,
+					messageIndex: i + 1,
+				});
+				continue;
+			}
+
+			// Click result via Agent
+			try {
+				await executeAgentStep(
+					agent,
+					"Click the first search result in the conversation list to open the chat.",
+					15000,
+				);
+			} catch (err) {
+				appendFloatingLog(
+					`[Agent] Click result failed: ${err?.message || err}`,
+					"error",
+				);
+				await clickXPath(
+					"//div[contains(@data-id,'backstage_search_result_item')]",
+					15000,
+				);
+			}
+
+			// Wait chat open
+			appendFloatingLog(`[Agent] Waiting for chat to open...`);
+			const messageTextarea = await waitUntil(
+				() => {
+					const resultsStillVisible = getVisibleXPathCount(
+						"//div[contains(@data-id,'backstage_search_result_item')]",
+					);
+					if (resultsStillVisible > 0) return null;
+					const textarea = document.evaluate(
+						"//textarea[contains(@class,'semi-input-textarea')]",
+						document,
+						null,
+						XPathResult.FIRST_ORDERED_NODE_TYPE,
+						null,
+					).singleNodeValue;
+					return isReadyElement(textarea, { requireEnabled: true })
+						? textarea
+						: null;
+				},
+				{ timeout: 15000, message: "chat opened with ready textarea" },
+			);
+			clickElementLikeUser(messageTextarea);
+			await new Promise((r) => setTimeout(r, 2000));
+			if (messageTextarea.value && messageTextarea.value.trim()) {
+				setElementValue(messageTextarea, "");
+				await new Promise((r) => setTimeout(r, 300));
+			}
+
+			// Type message
+			setElementValue(messageTextarea, msg);
+			await waitUntil(() => messageTextarea.value === msg, {
+				timeout: 3000,
+				message: "message textarea value",
+			});
+
+			if (testMode) {
+				appendFloatingLog(
+					`TEST MODE: message filled for @${user}; not sent.`,
+					"success",
+				);
+				if (!testedThisRun.has(user)) {
+					tested.push(user);
+					testedThisRun.add(user);
+				}
+				setElementValue(messageTextarea, "");
+			} else {
+				// Send via Agent
+				try {
+					await executeAgentStep(
+						agent,
+						'Click the send button next to the message textarea to send the message.',
+						15000,
+					);
+				} catch (err) {
+					appendFloatingLog(
+						`[Agent] Send button click failed: ${err?.message || err}`,
+						"error",
+					);
+					// Fallback to DOM send button
+					try {
+						await clickSendAndWaitForMessage(messageTextarea, msg);
+					} catch (fallbackErr) {
+						appendFloatingLog(
+							`Send not confirmed for @${user}: ${fallbackErr?.message || fallbackErr}`,
+							"error",
+						);
+						await setState("sendMessage", 2, {
+							msg,
+							chats,
+							newsent,
+							tested,
+							testMode,
+							messageIndex: i + 1,
+						});
+						continue;
+					}
+				}
+
+				// Verify via DOM
+				try {
+					await waitUntil(
+						() => countVisibleChatMessagesContaining(msg) > 0,
+						{
+							timeout: 12000,
+							message: "message visible in chat panel",
+						},
+					);
+					if (!sentThisRun.has(user)) {
+						newsent.push(user);
+						sentThisRun.add(user);
+					}
+					appendFloatingLog(`Sent confirmed: @${user}`, "success");
+				} catch (verifyErr) {
+					appendFloatingLog(
+						`Send not confirmed for @${user}: ${verifyErr?.message || verifyErr}`,
+						"error",
+					);
+				}
+
+				appendFloatingLog("Settling before next user...");
+				await new Promise((r) => setTimeout(r, 2000));
+			}
+
+			await setState("sendMessage", 2, {
+				msg,
+				chats,
+				newsent,
+				tested,
+				testMode,
+				messageIndex: i + 1,
+			});
+		}
+
+		if (!(await isTaskActive("sendMessage"))) return;
+		if (!testMode) {
+			await appendLocalSent(csvDistinct(newsent));
+		}
+		appendFloatingLog("Final settling before completion...");
+		await new Promise((r) => setTimeout(r, 4000));
+		await clearState();
+		notify(
+			testMode
+				? `✅ Agent Test completed. Tested ${tested.length}/${chats.length}.`
+				: `✅ Agent Send completed. Sent ${newsent.length}/${chats.length}.`,
+			5000,
+			"success",
+		);
+	}
+}
+
+// =================================================================================
+// Task: getCreator (DOM engine)
 // =================================================================================
 
 async function runGetCreator(step, data) {
@@ -1485,19 +2094,28 @@ async function runSendMessage(step, data) {
 // Main entry: resume on page load + listen for popup messages
 // =================================================================================
 
+async function resolveEngine() {
+	const state = await chrome.storage.local.get(["tkEngine", "engine"]);
+	return state.tkEngine || state.engine || "dom";
+}
+
 (async function main() {
 	// Listen for direct messages from popup (backup control channel)
 	chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 		(async () => {
 			try {
+				const engine = await resolveEngine();
 				if (request.action === "startGetCreator") {
-					await runGetCreator(0, {});
+					if (engine === "agent") await runAgentGetCreator(0, {});
+					else await runGetCreator(0, {});
 					sendResponse({ started: true });
 				} else if (request.action === "startInvite") {
-					await runInvite(0, {});
+					if (engine === "agent") await runAgentInvite(0, {});
+					else await runInvite(0, {});
 					sendResponse({ started: true });
 				} else if (request.action === "startSendMessage") {
-					await runSendMessage(0, {});
+					if (engine === "agent") await runAgentSendMessage(0, {});
+					else await runSendMessage(0, {});
 					sendResponse({ started: true });
 				} else if (request.action === "stop") {
 					await clearState();
@@ -1534,12 +2152,19 @@ async function runSendMessage(step, data) {
 			).catch(() => null);
 			await tick();
 
+			const engine = await resolveEngine();
 			if (state.tkTask === "getCreator") {
-				await runGetCreator(state.tkStep, state.tkData || {});
+				if (engine === "agent")
+					await runAgentGetCreator(state.tkStep, state.tkData || {});
+				else await runGetCreator(state.tkStep, state.tkData || {});
 			} else if (state.tkTask === "invite") {
-				await runInvite(state.tkStep, state.tkData || {});
+				if (engine === "agent")
+					await runAgentInvite(state.tkStep, state.tkData || {});
+				else await runInvite(state.tkStep, state.tkData || {});
 			} else if (state.tkTask === "sendMessage") {
-				await runSendMessage(state.tkStep, state.tkData || {});
+				if (engine === "agent")
+					await runAgentSendMessage(state.tkStep, state.tkData || {});
+				else await runSendMessage(state.tkStep, state.tkData || {});
 			}
 		}
 	} catch (err) {
