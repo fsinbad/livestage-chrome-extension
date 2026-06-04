@@ -381,33 +381,33 @@ async function openInstantMessagesPage() {
 }
 
 function findInstantMessageSearchInput() {
+	// Find the search input on the instant-messages page without relying on
+	// placeholder text (language-dependent). Use structural cues instead.
 	const inputs = Array.from(document.querySelectorAll("input"))
 		.filter((el) => isReadyElement(el, { requireEnabled: true }))
 		.map((el) => {
 			const rect = el.getBoundingClientRect();
-			const placeholder = el.getAttribute("placeholder") || "";
+			// Structural score: positioned in the left conversation-list panel,
+			// reasonably wide, and inside a search-like container.
 			const context = el.closest(
 				'[data-id], [class*="search"], [class*="Search"]',
 			);
 			const label = [
-				placeholder,
-				el.getAttribute("aria-label") || "",
+				el.getAttribute("data-id") || "",
 				context?.getAttribute("data-id") || "",
 				context?.className || "",
 			]
 				.join(" ")
 				.toLowerCase();
 			const score =
-				(placeholder.includes("主播") || placeholder.includes("用户")
-					? 50
+				(label.includes("search") ? 30 : 0) +
+				(label.includes("input") ? 20 : 0) +
+				(rect.x > 180 && rect.x < 500 && rect.y > 100 && rect.y < 320
+					? 30
 					: 0) +
-				(label.includes("username") || label.includes("user") ? 20 : 0) +
-				(label.includes("search") ? 15 : 0) +
-				(rect.x > 240 && rect.x < 680 && rect.y > 120 && rect.y < 260
-					? 20
-					: 0) +
-				(rect.width > 180 ? 5 : 0) +
-				(placeholder ? 5 : -10);
+				(rect.width > 200 && rect.width < 500 ? 15 : 0) +
+				(el.getAttribute("placeholder") ? 5 : 0) +
+				(el.getAttribute("type") === "text" ? 5 : 0);
 			return { el, score };
 		})
 		.sort((a, b) => b.score - a.score);
@@ -651,21 +651,10 @@ async function waitForNewCreatorUsername(
 	);
 }
 
-async function isInviteEligible(status, user) {
-	const normalized = String(status || "")
-		.trim()
-		.toLowerCase();
-	if (normalized) {
-		return (
-			status.includes("可邀请") ||
-			status.includes("対象") ||
-			normalized.includes("eligible") ||
-			normalized.includes("invitable")
-		);
-	}
-
-	// Last-resort fallback: only if no status text exists, require an enabled row
-	// invite action button rather than a global next/back button.
+async function isInviteEligible(_status, user) {
+	// Do NOT rely on status text (language-dependent).
+	// Instead, check if the row has an enabled invite action button.
+	// A visible, non-disabled action button means this user is eligible.
 	return Boolean(getInviteCandidateActionButton(user));
 }
 
@@ -744,30 +733,24 @@ function findSendMessageButton(messageTextarea) {
 		.filter((el) => isReadyElement(el, { requireEnabled: true }))
 		.map((el) => {
 			const rect = el.getBoundingClientRect();
-			const label = [
-				el.getAttribute("data-id") || "",
-				el.getAttribute("aria-label") || "",
-				el.getAttribute("title") || "",
-				el.className || "",
-				el.innerText || el.textContent || "",
-			]
-				.join(" ")
-				.toLowerCase();
+			// Do NOT rely on innerText / aria-label / title (language-dependent).
+			// Use structural cues: near the textarea, small button-like size,
+			// and positioned on the right side of the chat panel.
+			const dataId = (el.getAttribute("data-id") || "").toLowerCase();
 			const nearTextarea =
 				rect.x > textareaRect.left &&
 				rect.y > textareaRect.top - 120 &&
 				rect.y < textareaRect.bottom + 90;
 			const score =
-				(label.includes("send") ? 50 : 0) +
-				(label.includes("发送") ? 50 : 0) +
-				(label.includes("送信") ? 50 : 0) +
-				(label.includes("submit") ? 20 : 0) +
-				(nearTextarea ? 20 : 0) +
-				(rect.x > window.innerWidth * 0.65 ? 8 : 0) +
-				(rect.width <= 80 && rect.height <= 80 ? 4 : 0);
-			return { el, rect, score, label };
+				(dataId.includes("send") ? 50 : 0) +
+				(dataId.includes("submit") ? 40 : 0) +
+				(nearTextarea ? 25 : 0) +
+				(rect.x > window.innerWidth * 0.65 ? 12 : 0) +
+				(rect.width <= 80 && rect.height <= 80 ? 6 : 0) +
+				(rect.width >= 20 && rect.height >= 20 ? 4 : 0);
+			return { el, rect, score };
 		})
-		.filter((item) => item.score >= 24)
+		.filter((item) => item.score >= 20)
 		.sort((a, b) => b.score - a.score || b.rect.x - a.rect.x);
 	return candidates[0]?.el || null;
 }
