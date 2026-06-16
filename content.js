@@ -595,7 +595,9 @@ function clickElementLikeUser(el) {
 			}),
 		);
 	}
-	el.click();
+	// Do NOT call el.click() here. The dispatched click event above already
+	// triggers listeners, and el.click() would fire a second native click,
+	// causing double submission for buttons like the message send button.
 }
 
 function findLiveNextControl() {
